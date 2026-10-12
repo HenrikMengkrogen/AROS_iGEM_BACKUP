@@ -43,7 +43,7 @@ Other features:
 
 ## How it works
 
-Ribologic designs sequences in four stages. It splits the target into
+AROS designs sequences in four stages. It splits the target into
 nested **slices**, designs each slice with a hill-climbing search,
 repairs the assembled sequence globally, and finally verifies and
 annotates pseudoknots.
@@ -342,8 +342,8 @@ git lfs pull
 Clone the repository and run the setup script:
 
 ```bash
-git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
-cd ribologic-rna-sequence-generator
+git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
+cd AROS-rna-sequence-generator
 
 # Run setup in the current shell so Cargo and native-library environment
 # variables remain available immediately afterward.
@@ -369,8 +369,8 @@ source "$HOME/.cargo/env"
 Install the system requirements shown above, then clone the repository:
 
 ```bash
-git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
-cd ribologic-rna-sequence-generator
+git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
+cd AROS-rna-sequence-generator
 
 # `source` keeps PATH and other setup environment variables in this shell.
 source ./setup.sh
@@ -394,8 +394,8 @@ This works on both `x86_64` and `arm64` Linux; `setup.sh` detects your architect
    ```
 4. Clone the repository and run the setup script:
    ```bash
-   git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
-   cd ribologic-rna-sequence-generator
+   git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
+   cd AROS-rna-sequence-generator
    source ./setup.sh
    ```
    This installs the MinGW toolchain, GMP, MPFR, and GSL via `pacman`, builds ViennaRNA from source, and adds the `x86_64-pc-windows-gnu` Rust target.
@@ -595,7 +595,7 @@ These GitHub Actions workflows run on the GitHub mirror; they do not run automat
 ### Project structure
 
 ```
-ribologic-rna-sequence-generator/
+AROS-rna-sequence-generator/
 ├── Cargo.toml
 ├── Cargo.lock
 ├── build.rs
