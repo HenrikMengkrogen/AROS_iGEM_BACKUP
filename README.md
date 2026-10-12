@@ -1,4 +1,4 @@
-# Ribologic RNA Sequence Generator
+# AROS - Automated RNA Optimization by Slicing
 
 **Team Aarhus University 2026 – Software**
 
