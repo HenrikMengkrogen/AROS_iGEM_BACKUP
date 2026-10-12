@@ -60,8 +60,8 @@ flowchart TD
     F --> |No| G[Assemble sequence<br/>fill N/K/S]
     G --> H[ViennaRNA fold<br/>check BP distance]
     H --> I{Distance > 0?}
-    I -->|Yes| J[Global + 2 focused repair]
-    I -->|No| K[Reduce GC pairs and calculate ensemble diversity]
+    I -->|Yes| J[Global + 2 focused repair and filter for lowest ensemble diversity]
+    I -->|No| K[Reduce GC pairs, calculate and filter for lowest ensemble diversity]
     J --> K
     K --> L[Final verification]
 
