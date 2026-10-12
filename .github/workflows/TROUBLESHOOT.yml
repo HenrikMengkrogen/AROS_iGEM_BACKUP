@@ -119,7 +119,7 @@ jobs:
           update: true
           path-type: minimal
           cache: true
-          location: ${{ runner.temp }}\msys64-ribologic
+          suppress-deprecation-warnings: msystem-mingw64
 
       - name: Setup, test, and build
         if: runner.os == 'Windows'
