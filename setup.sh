@@ -211,6 +211,17 @@ if [[ "$OS" == "windows" ]]; then
 
     export LIBCLANG_PATH="${LIBCLANG_PATH:-$WIN_PREFIX/bin}"
 
+    # clang rejects the Rust triple "aarch64-pc-windows-gnullvm" ("version
+    # 'llvm' in target triple is invalid"), so give bindgen's clang a
+    # triple it understands. Extra args are appended after bindgen's own.
+    if [[ "$MSYSTEM" == "CLANGARM64" ]]; then
+        export BINDGEN_EXTRA_CLANG_ARGS_aarch64_pc_windows_gnullvm="--target=aarch64-w64-mingw32"
+
+        if [[ -n "${GITHUB_ENV:-}" ]]; then
+            echo "BINDGEN_EXTRA_CLANG_ARGS_aarch64_pc_windows_gnullvm=--target=aarch64-w64-mingw32" >> "$GITHUB_ENV"
+        fi
+    fi
+
     # Persist these variables for subsequent GitHub Actions steps.
     #
     # GITHUB_PATH is processed by GitHub Actions after setup.sh's step ends.
@@ -779,7 +790,7 @@ setup_windows() {
         --prefix="$WIN_PREFIX" \
         --disable-shared \
         --enable-static \
-        --without-openmp \
+        --disable-openmp \
         --without-swig \
         --without-svm \
         --without-forester

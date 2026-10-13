@@ -160,6 +160,7 @@ fn main() {
             if target.ends_with("gnullvm") {
                 // Built with clang in MSYS2 CLANGARM64: LLVM C++ runtime, no libgomp.
                 println!("cargo:rustc-link-lib=c++");
+                println!("cargo:rustc-link-lib=static=winpthread");
             } else {
                 // MinGW GCC (x86_64): GNU C++ runtime.
                 println!("cargo:rustc-link-lib=stdc++");
