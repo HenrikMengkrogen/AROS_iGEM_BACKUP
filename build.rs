@@ -81,6 +81,10 @@ fn main() {
      * such as x86_64 macOS on an Intel Mac, the host SDK provides
      * standard C headers such as stdlib.h.
      */
+     let target = std::env::var("TARGET").unwrap();
+    // clang doesn't understand Rust's "gnullvm" environment
+    let clang_target = target.replace("gnullvm", "gnu");
+
     let bindings = bindgen::Builder::default()
         .header(
             wrapper_header
@@ -88,7 +92,7 @@ fn main() {
                 .expect("wrapper.h path is not valid UTF-8"),
         )
         .clang_arg(format!("-I{}", include_dir.display()))
-        .clang_arg(format!("--target={target}"))
+        .clang_arg(format!("--target={clang_target}"))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         /*
          * Optional but strongly recommended: avoid generating every
@@ -153,10 +157,14 @@ fn main() {
         }
 
         "windows" => {
-            // If this prebuilt GNU/MinGW archive also contains libsvm and
-            // OpenMP code, these need to be available in the MinGW toolchain.
-            println!("cargo:rustc-link-lib=stdc++");
-            println!("cargo:rustc-link-lib=gomp");
+            if target.ends_with("gnullvm") {
+                // Built with clang in MSYS2 CLANGARM64: LLVM C++ runtime, no libgomp.
+                println!("cargo:rustc-link-lib=c++");
+            } else {
+                // MinGW GCC (x86_64): GNU C++ runtime.
+                println!("cargo:rustc-link-lib=stdc++");
+                println!("cargo:rustc-link-lib=gomp");
+            }
 
             println!("cargo:rustc-link-lib=ws2_32");
             println!("cargo:rustc-link-lib=winmm");
