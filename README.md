@@ -35,7 +35,7 @@
 Clone the repository and run the setup script:
 
 ```bash
-git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
+git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
 cd AROS-rna-sequence-generator
 
 # Run setup in the current shell so Cargo and native-library environment
@@ -62,7 +62,7 @@ source "$HOME/.cargo/env"
 Install the system requirements shown above, then clone the repository:
 
 ```bash
-git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
+git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
 cd AROS-rna-sequence-generator
 
 # `source` keeps PATH and other setup environment variables in this shell.
@@ -87,7 +87,7 @@ This works on both `x86_64` and `arm64` Linux; `setup.sh` detects your architect
    ```
 4. Clone the repository and run the setup script:
    ```bash
-   git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
+   git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
    cd AROS-rna-sequence-generator
    source ./setup.sh
    ```
