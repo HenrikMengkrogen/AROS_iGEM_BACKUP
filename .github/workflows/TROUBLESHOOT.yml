@@ -22,9 +22,21 @@ jobs:
             os: macos-14
             target: aarch64-apple-darwin
 
-          - name: Linux x86_64
-            os: ubuntu-latest
+          - name: Linux x86_64 (Ubuntu 22.04)
+            os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
+
+          - name: Linux x86_64 (Ubuntu 24.04)
+            os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+
+          - name: Linux ARM64 (Ubuntu 22.04)
+            os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+
+          - name: Linux ARM64 (Ubuntu 24.04)
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
 
           - name: Windows x86_64 (MinGW)
             os: windows-latest
