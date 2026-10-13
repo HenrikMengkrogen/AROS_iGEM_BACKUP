@@ -1,6 +1,119 @@
 # AROS - Automated RNA Optimization by Slicing
 
 **Team Aarhus University 2026 – Software**
+## Table of contents
+
+- [Quick start: macOS](#quick-start-macos)
+- [Quick start: Linux](#quick-start-linux)
+- [Quick start: Windows (MSYS2 MinGW64)](#quick-start-windows-msys2-mingw64)
+- [Troubleshooting](#troubleshooting)
+- [Overview](#overview)
+- [How it works](#how-it-works)
+  - [1. Slicing the target](#1-slicing-the-target)
+  - [2. Designing a slice](#2-designing-a-slice)
+  - [3. Repairing the full sequence](#3-repairing-the-full-sequence)
+  - [4. Pseudoknot verification and annotation](#4-pseudoknot-verification-and-annotation)
+  - [Supported platforms](#supported-platforms)
+- [Installation](#installation)
+  - [Requirements](#requirements)
+  - [Git LFS (required)](#git-lfs-required)
+- [Usage](#usage)
+  - [Input and output files](#input-and-output-files)
+- [Example](#example)
+- [Data and large files](#data-and-large-files)
+- [Contributing](#contributing)
+  - [Native dependencies](#native-dependencies)
+  - [Continuous integration](#continuous-integration)
+  - [Project structure](#project-structure)
+- [Authors and acknowledgment](#authors-and-acknowledgment)
+- [License](#license)
+- [Citation](#citation)
+
+
+### Quick start: macOS
+
+Clone the repository and run the setup script:
+
+```bash
+git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
+cd AROS-rna-sequence-generator
+
+# Run setup in the current shell so Cargo and native-library environment
+# variables remain available immediately afterward.
+source ./setup.sh
+```
+The setup script installs required tools when needed and builds the project. This works the same way on Intel and Apple Silicon Macs, because `setup.sh` detects your CPU architecture and targets it automatically.
+
+Then run the program (`--release` is faster):
+
+```bash
+cargo run --release
+```
+
+If Rust was not installed automatically, install it with:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+
+### Quick start: Linux
+
+Install the system requirements shown above, then clone the repository:
+
+```bash
+git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
+cd AROS-rna-sequence-generator
+
+# `source` keeps PATH and other setup environment variables in this shell.
+source ./setup.sh
+
+cargo run --release
+```
+
+This works on both `x86_64` and `arm64` Linux; `setup.sh` detects your architecture and builds ViennaRNA from source if a prebuilt archive isn't already vendored.
+
+### Quick start: Windows (MSYS2 MinGW64)
+
+1. Install [MSYS2](https://www.msys2.org/).
+2. Open the **"MSYS2 MinGW x64"** terminal from the Start menu (this specific shell is required).
+    > This specific terminal is required. Do not use PowerShell, Command Prompt,
+    > Git Bash, WSL, the plain MSYS2 shell, UCRT64, or CLANG64.
+3. Install Git LFS if it is not already available:
+
+   ```bash
+   pacman -S --needed git-lfs
+   git lfs install
+   ```
+4. Clone the repository and run the setup script:
+   ```bash
+   git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
+   cd AROS-rna-sequence-generator
+   source ./setup.sh
+   ```
+   This installs the MinGW toolchain, GMP, MPFR, and GSL via `pacman`, builds ViennaRNA from source, and adds the `x86_64-pc-windows-gnu` Rust target.
+5. Run the program, targeting the GNU toolchain:
+   ```bash
+   cargo run --release --target x86_64-pc-windows-gnu
+   ```
+
+> Native Windows support currently covers `x86_64` only.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Build fails with tiny "pointer" files in `vendor/` or linker errors about `libRNA.a` | Git LFS did not download the vendored files. Run `git lfs install && git lfs pull` from the repository root. |
+| `setup.sh` fails on Windows | Open **MSYS2 MinGW x64** specifically. PowerShell, CMD, Git Bash, WSL, plain MSYS2, UCRT64, and CLANG64 are unsupported for the native Windows build. |
+| `cargo: command not found` immediately after setup | Run `source ./setup.sh`, not `./setup.sh`. Alternatively, close and reopen the terminal after Rust installation. |
+| `cargo: command not found` on Windows after reopening MSYS2 | Confirm that Rust is installed, then run `source ./setup.sh` from MSYS2 MinGW x64. |
+| `bindgen` cannot find `libclang` | Run `source ./setup.sh` again. On Linux, ensure `clang` and `libclang-dev` are installed. |
+| Setup appears frozen during Windows installation | The first run may download/install a large MinGW64 toolchain and build ViennaRNA. Let `pacman` and `make` finish. |
+| Setup seems frozen on an Intel Mac | Homebrew may be compiling dependencies such as LLVM from source. This can take a long time. |
+| Program uses all CPU cores | Lower the number of parallel runs at the second prompt. |
+
+
+# Overview
 
 A Rust-based RNA sequence design tool built on the
 [ViennaRNA](https://www.tbi.univie.ac.at/RNA/) library. Given a target
@@ -337,87 +450,7 @@ If you already cloned without Git LFS, run this inside the repository:
 git lfs pull
 ```
 
-### Quick start: macOS
 
-Clone the repository and run the setup script:
-
-```bash
-git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
-cd AROS-rna-sequence-generator
-
-# Run setup in the current shell so Cargo and native-library environment
-# variables remain available immediately afterward.
-source ./setup.sh
-```
-The setup script installs required tools when needed and builds the project. This works the same way on Intel and Apple Silicon Macs, because `setup.sh` detects your CPU architecture and targets it automatically.
-
-Then run the program (`--release` is faster):
-
-```bash
-cargo run --release
-```
-
-If Rust was not installed automatically, install it with:
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
-```
-
-### Quick start: Linux
-
-Install the system requirements shown above, then clone the repository:
-
-```bash
-git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
-cd AROS-rna-sequence-generator
-
-# `source` keeps PATH and other setup environment variables in this shell.
-source ./setup.sh
-
-cargo run --release
-```
-
-This works on both `x86_64` and `arm64` Linux; `setup.sh` detects your architecture and builds ViennaRNA from source if a prebuilt archive isn't already vendored.
-
-### Quick start: Windows (MSYS2 MinGW64)
-
-1. Install [MSYS2](https://www.msys2.org/).
-2. Open the **"MSYS2 MinGW x64"** terminal from the Start menu (this specific shell is required).
-    > This specific terminal is required. Do not use PowerShell, Command Prompt,
-    > Git Bash, WSL, the plain MSYS2 shell, UCRT64, or CLANG64.
-3. Install Git LFS if it is not already available:
-
-   ```bash
-   pacman -S --needed git-lfs
-   git lfs install
-   ```
-4. Clone the repository and run the setup script:
-   ```bash
-   git clone https://gitlab.igem.org/2026/software/aarhus-university/AROS-rna-sequence-generator.git
-   cd AROS-rna-sequence-generator
-   source ./setup.sh
-   ```
-   This installs the MinGW toolchain, GMP, MPFR, and GSL via `pacman`, builds ViennaRNA from source, and adds the `x86_64-pc-windows-gnu` Rust target.
-5. Run the program, targeting the GNU toolchain:
-   ```bash
-   cargo run --release --target x86_64-pc-windows-gnu
-   ```
-
-> Native Windows support currently covers `x86_64` only.
-
-## Troubleshooting
-
-| Problem | Fix |
-|---|---|
-| Build fails with tiny "pointer" files in `vendor/` or linker errors about `libRNA.a` | Git LFS did not download the vendored files. Run `git lfs install && git lfs pull` from the repository root. |
-| `setup.sh` fails on Windows | Open **MSYS2 MinGW x64** specifically. PowerShell, CMD, Git Bash, WSL, plain MSYS2, UCRT64, and CLANG64 are unsupported for the native Windows build. |
-| `cargo: command not found` immediately after setup | Run `source ./setup.sh`, not `./setup.sh`. Alternatively, close and reopen the terminal after Rust installation. |
-| `cargo: command not found` on Windows after reopening MSYS2 | Confirm that Rust is installed, then run `source ./setup.sh` from MSYS2 MinGW x64. |
-| `bindgen` cannot find `libclang` | Run `source ./setup.sh` again. On Linux, ensure `clang` and `libclang-dev` are installed. |
-| Setup appears frozen during Windows installation | The first run may download/install a large MinGW64 toolchain and build ViennaRNA. Let `pacman` and `make` finish. |
-| Setup seems frozen on an Intel Mac | Homebrew may be compiling dependencies such as LLVM from source. This can take a long time. |
-| Program uses all CPU cores | Lower the number of parallel runs at the second prompt. |
 
 ## Usage
 
