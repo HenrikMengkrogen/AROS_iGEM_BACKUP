@@ -5,7 +5,7 @@
 
 - [Quick start: macOS](#quick-start-macos)
 - [Quick start: Linux](#quick-start-linux)
-- [Quick start: Windows (MSYS2 MinGW64)](#quick-start-windows-msys2-mingw64)
+- [Quick start: Windows (MSYS2)](#quick-start-windows-msys2)
 - [Troubleshooting](#troubleshooting)
 - [Overview](#overview)
 - [How it works](#how-it-works)
@@ -28,7 +28,6 @@
 - [Authors and acknowledgment](#authors-and-acknowledgment)
 - [License](#license)
 - [Citation](#citation)
-
 
 ### Quick start: macOS
 
@@ -72,16 +71,24 @@ cargo run --release
 
 This works on both `x86_64` and `arm64` Linux; `setup.sh` detects your architecture and builds ViennaRNA from source if a prebuilt archive isn't already vendored.
 
-### Quick start: Windows (MSYS2 MinGW64)
+### Quick start: Windows (MSYS2)
+
+Native Windows is supported on `x86_64` (MinGW64) and `ARM64` (CLANGARM64).
 
 1. Install [MSYS2](https://www.msys2.org/).
-2. Open the **"MSYS2 MinGW x64"** terminal from the Start menu (this specific shell is required).
+2. Open the MSYS2 terminal that matches your CPU from the Start menu (this specific shell is required):
+
+   | Your Windows | Open this terminal |
+   |---|---|
+   | x86_64 (Intel/AMD) | **MSYS2 MinGW x64** |
+   | ARM64 | **MSYS2 CLANGARM64** |
+
     > This specific terminal is required. Do not use PowerShell, Command Prompt,
-    > Git Bash, WSL, the plain MSYS2 shell, UCRT64, or CLANG64.
-3. Install Git LFS if it is not already available:
+    > Git Bash, WSL, the plain MSYS2 shell, UCRT64, CLANG64, or MinGW x86 (`MINGW32`).
+3. Install Git and Git LFS if they are not already available. The package prefix adapts to the terminal you opened:
 
    ```bash
-   pacman -S --needed git-lfs
+   pacman -S --needed git "$MINGW_PACKAGE_PREFIX-git-lfs"
    git lfs install
    ```
 4. Clone the repository and run the setup script:
@@ -90,24 +97,31 @@ This works on both `x86_64` and `arm64` Linux; `setup.sh` detects your architect
    cd ribologic-rna-sequence-generator
    source ./setup.sh
    ```
-   This installs the MinGW toolchain, GMP, MPFR, and GSL via `pacman`, builds ViennaRNA from source, and adds the `x86_64-pc-windows-gnu` Rust target.
-5. Run the program, targeting the GNU toolchain:
+   `setup.sh` detects which terminal you are in. It installs the matching toolchain, GMP, MPFR, and GSL via `pacman`, builds ViennaRNA from source, and adds the right Rust target (`x86_64-pc-windows-gnu` or `aarch64-pc-windows-gnullvm`). The first run can take a long time, especially on ARM64.
+5. Run the program, targeting the GNU toolchain for your platform:
+
    ```bash
+   # x86_64 (MSYS2 MinGW x64)
    cargo run --release --target x86_64-pc-windows-gnu
+
+   # ARM64 (MSYS2 CLANGARM64)
+   cargo run --release --target aarch64-pc-windows-gnullvm
    ```
 
-> Native Windows support currently covers `x86_64` only.
+> Windows x86 (32-bit) is not supported: MSYS2's `MINGW32` repository no longer provides `clang` or GSL.
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
 | Build fails with tiny "pointer" files in `vendor/` or linker errors about `libRNA.a` | Git LFS did not download the vendored files. Run `git lfs install && git lfs pull` from the repository root. |
-| `setup.sh` fails on Windows | Open **MSYS2 MinGW x64** specifically. PowerShell, CMD, Git Bash, WSL, plain MSYS2, UCRT64, and CLANG64 are unsupported for the native Windows build. |
+| `setup.sh` fails on Windows, or says `Unsupported MSYS2 environment` | Open **MSYS2 MinGW x64** (x86_64) or **MSYS2 CLANGARM64** (ARM64) specifically. PowerShell, CMD, Git Bash, WSL, plain MSYS2, UCRT64, CLANG64, and MinGW x86 are unsupported for the native Windows build. |
 | `cargo: command not found` immediately after setup | Run `source ./setup.sh`, not `./setup.sh`. Alternatively, close and reopen the terminal after Rust installation. |
-| `cargo: command not found` on Windows after reopening MSYS2 | Confirm that Rust is installed, then run `source ./setup.sh` from MSYS2 MinGW x64. |
+| `cargo: command not found` on Windows after reopening MSYS2 | Confirm that Rust is installed, then run `source ./setup.sh` from MSYS2 MinGW x64 or CLANGARM64. |
 | `bindgen` cannot find `libclang` | Run `source ./setup.sh` again. On Linux, ensure `clang` and `libclang-dev` are installed. |
-| Setup appears frozen during Windows installation | The first run may download/install a large MinGW64 toolchain and build ViennaRNA. Let `pacman` and `make` finish. |
+| Setup appears frozen during Windows installation | The first run may download/install a large toolchain and build ViennaRNA (the ARM64 build can take 30+ minutes). Let `pacman` and `make` finish. |
+| `pacman` reports `failed retrieving file` or `Operation too slow` | A package mirror stalled. `setup.sh` retries automatically; if it still fails, run `source ./setup.sh` again. |
+| Linker errors such as `undefined symbol: omp_set_dynamic` or `pthread_mutex_lock` on Windows | The vendored libraries were built with an older setup. Delete `vendor/RNAlib/prebuilt/<your-target>/` and run `source ./setup.sh` again to rebuild them. |
 | Setup seems frozen on an Intel Mac | Homebrew may be compiling dependencies such as LLVM from source. This can take a long time. |
 | Program uses all CPU cores | Lower the number of parallel runs at the second prompt. |
 
@@ -362,17 +376,19 @@ separate pseudoknot-oriented check.
 
 `setup.sh` detects your OS/CPU and stages the correct prebuilt (or freshly built) native libraries automatically.
 
-| Platform | Architecture | Status |
-|---|---|---|
-| macOS | Intel (`x86_64-apple-darwin`) | Tested in GitHub Actions CI |
-| macOS | Apple Silicon (`aarch64-apple-darwin`) | Tested in GitHub Actions CI |
-| Linux | `x86_64-unknown-linux-gnu` | Tested in GitHub Actions CI |
-| Linux | `aarch64-unknown-linux-gnu` | Tested in GitHub Actions CI when ARM64 runners are available |
-| Windows | `x86_64-pc-windows-gnu` via MSYS2 MinGW64 | Tested in GitHub Actions CI |
-| WSL2 | Treated as Linux | Supported by `setup.sh` |
+| Platform | Architecture | MSYS2 environment | Status |
+|---|---|---|---|
+| macOS | Intel (`x86_64-apple-darwin`) | – | Tested manually (not currently in CI) |
+| macOS | Apple Silicon (`aarch64-apple-darwin`) | – | Tested in GitHub Actions CI |
+| Linux | `x86_64-unknown-linux-gnu` (Ubuntu 22.04 and 24.04) | – | Tested in GitHub Actions CI |
+| Linux | `aarch64-unknown-linux-gnu` (Ubuntu 22.04 and 24.04) | – | Tested in GitHub Actions CI (ARM64 runners) |
+| Windows | `x86_64-pc-windows-gnu` | MinGW64 | Tested in GitHub Actions CI |
+| Windows | `aarch64-pc-windows-gnullvm` | CLANGARM64 | Tested in GitHub Actions CI (ARM64 runner) |
+| WSL2 | Treated as Linux | – | Supported by `setup.sh` |
 
+> **Windows x86 (32-bit) is not supported.** MSYS2's 32-bit `MINGW32` repository no longer provides `clang` (needed by Rust `bindgen`) or GSL, so the native libraries cannot be built there.
 
-On macOS and Linux, ViennaRNA is built from source by `setup.sh` if a prebuilt archive is not already present in `vendor/`; GSL, MPFR, and GMP are pulled from your package manager (Homebrew or your Linux distribution's package manager). On Windows, all native libraries (including ViennaRNA) are built from source using MSYS2 MinGW64.
+On macOS and Linux, ViennaRNA is built from source by `setup.sh` if a prebuilt archive is not already present in `vendor/`; GSL, MPFR, and GMP are pulled from your package manager (Homebrew or your Linux distribution's package manager). On Windows, all native libraries (including ViennaRNA) are built from source using MSYS2: GCC in the MinGW64 environment for x86_64, and Clang in the CLANGARM64 environment for ARM64.
 
 ## Installation
 
@@ -416,13 +432,23 @@ sudo apt-get install -y \
 
 #### Windows
 
-- Windows 10 or Windows 11 on `x86_64`
+- Windows 10 or Windows 11 on `x86_64` or `ARM64`
 - [MSYS2](https://www.msys2.org/) installed
-- The build must be run from the **MSYS2 MinGW x64** terminal specifically.
-  Do **not** use PowerShell, Command Prompt, Git Bash, WSL, the plain MSYS2 shell, UCRT64, or CLANG64.
+- The build must be run from the matching MSYS2 terminal:
+  - **MSYS2 MinGW x64** on `x86_64` Windows
+  - **MSYS2 CLANGARM64** on `ARM64` Windows
+
+  Do **not** use PowerShell, Command Prompt, Git Bash, WSL, the plain MSYS2 shell, UCRT64, CLANG64, or MinGW x86 (`MINGW32`).
 - Internet access for the initial `pacman`, Rust, and ViennaRNA setup
 
-`setup.sh` configures the `stable-x86_64-pc-windows-gnu` Rust toolchain and installs the required MinGW64 packages. The first Windows setup may take several minutes because it downloads compilers, LLVM/Clang, autotools, GMP, MPFR, GSL, and builds ViennaRNA.
+`setup.sh` reads the active MSYS2 environment and selects the matching Rust toolchain and target automatically:
+
+| MSYS2 terminal | Rust toolchain | Rust target |
+|---|---|---|
+| MinGW x64 | `stable-x86_64-pc-windows-gnu` | `x86_64-pc-windows-gnu` |
+| CLANGARM64 | `stable-aarch64-pc-windows-gnullvm` | `aarch64-pc-windows-gnullvm` |
+
+It also installs the required MSYS2 packages for that environment. The first Windows setup may take a long time (the ARM64 build in particular) because it downloads compilers, LLVM/Clang, autotools, GMP, MPFR, GSL, and builds ViennaRNA.
 
 
 ### Git LFS (required)
@@ -436,12 +462,12 @@ brew install git-lfs
 # Ubuntu / Debian
 sudo apt-get install git-lfs
 
-# Windows (MSYS2 MinGW x64)
+# Windows (MSYS2 MinGW x64 or CLANGARM64)
 pacman -S --needed git-lfs
 
 # Once per machine:
 git lfs install
-````
+```
 
 If you already cloned without Git LFS, run this inside the repository:
 
@@ -465,7 +491,7 @@ For an optimized release build:
 cargo run --release
 ```
 
-On Windows, pass `--target x86_64-pc-windows-gnu` to both commands.
+On Windows, also pass `--target` for your platform to both commands: `--target x86_64-pc-windows-gnu` on x86_64, or `--target aarch64-pc-windows-gnullvm` on ARM64.
 
 When the program starts you will be asked:
 
@@ -584,12 +610,19 @@ cargo build            # debug build
 cargo run --release    # optimized build and run
 ```
 
-For windows:
+For Windows, add the target for your platform:
 
 ```bash
+# x86_64 (MSYS2 MinGW x64)
 cargo build --target x86_64-pc-windows-gnu
 cargo run --release --target x86_64-pc-windows-gnu
+
+# ARM64 (MSYS2 CLANGARM64)
+cargo build --target aarch64-pc-windows-gnullvm
+cargo run --release --target aarch64-pc-windows-gnullvm
 ```
+
+> **C types and portability:** when calling ViennaRNA, use `std::os::raw::c_char` rather than `i8`/`u8`. `c_char` is unsigned on some platforms (Linux ARM64) and signed on others, so hardcoding either breaks a build somewhere.
 
 ### Native dependencies
 
@@ -606,21 +639,30 @@ On macOS, Linux, and Windows, `setup.sh` builds and/or copies these into a targe
 vendor/RNAlib/prebuilt/x86_64-unknown-linux-gnu/
 vendor/RNAlib/prebuilt/aarch64-apple-darwin/
 vendor/RNAlib/prebuilt/x86_64-pc-windows-gnu/
+vendor/RNAlib/prebuilt/aarch64-pc-windows-gnullvm/
 ```
 
 The Rust build script (`build.rs`) selects the correct prebuilt library directory for the current target platform and expects the ViennaRNA headers in `vendor/RNAlib/include/ViennaRNA`.
+
+Platform notes for `build.rs`:
+
+- **Windows ARM64 (`gnullvm`):** libraries are built with Clang, so the build links LLVM's C++ runtime (`c++`) and `winpthread` instead of `stdc++` and `gomp`. Because Clang does not recognise Rust's `gnullvm` triple, bindgen is passed the equivalent `gnu` triple.
+- **Windows x86_64 (MinGW64):** links `stdc++` and `gomp`.
+- **ViennaRNA is built without OpenMP** on Windows (`--disable-openmp`).
 
 ### Continuous integration
 
 The GitHub mirror runs `.github/workflows/test-all-platforms.yml`, which tests:
 
-- macOS Intel: `x86_64-apple-darwin`
 - macOS Apple Silicon: `aarch64-apple-darwin`
-- Linux x86_64: `x86_64-unknown-linux-gnu`
-- Linux ARM64: `aarch64-unknown-linux-gnu`, when GitHub-hosted ARM64 runners are available
-- Windows MSYS2 MinGW64: `x86_64-pc-windows-gnu`
+- Linux x86_64: `x86_64-unknown-linux-gnu` on Ubuntu 22.04 and 24.04
+- Linux ARM64: `aarch64-unknown-linux-gnu` on Ubuntu 22.04 and 24.04 (GitHub-hosted ARM64 runners)
+- Windows x86_64, MSYS2 MinGW64: `x86_64-pc-windows-gnu`
+- Windows ARM64, MSYS2 CLANGARM64: `aarch64-pc-windows-gnullvm`
 
-The Windows CI job uses MSYS2 MinGW64, runs `source ./setup.sh`, builds ViennaRNA and native dependencies, and runs both `cargo test` and `cargo build` for the GNU Windows target.
+macOS Intel (`x86_64-apple-darwin`) is currently disabled in the workflow. Windows x86 (`i686-pc-windows-gnu`) is not tested because it is not supported (see [Supported platforms](#supported-platforms)).
+
+The Windows CI jobs select the MSYS2 environment from the build matrix (`MINGW64` or `CLANGARM64`), run `source ./setup.sh`, build ViennaRNA and the native dependencies, and run both `cargo test` and `cargo build` for the matching GNU target.
 
 These GitHub Actions workflows run on the GitHub mirror; they do not run automatically in the GitLab repository.
 
@@ -649,7 +691,8 @@ AROS-rna-sequence-generator/
 │           ├── aarch64-apple-darwin/
 │           ├── x86_64-unknown-linux-gnu/
 │           ├── aarch64-unknown-linux-gnu/
-│           └── x86_64-pc-windows-gnu/
+│           ├── x86_64-pc-windows-gnu/
+│           └── aarch64-pc-windows-gnullvm/
 │               ├── libRNA.a
 │               ├── libgmp.a
 │               ├── libmpfr.a
