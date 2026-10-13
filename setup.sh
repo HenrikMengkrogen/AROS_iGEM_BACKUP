@@ -305,7 +305,14 @@ setup_rust() {
     if [[ "$OS" == "windows" ]]; then
         echo "Installing/selecting Windows Rust toolchain: $WIN_RUST_TOOLCHAIN"
 
-        rustup toolchain install "$WIN_RUST_TOOLCHAIN"
+        # A 32-bit host toolchain on a 64-bit machine is refused by rustup
+        # unless --force-non-host is given (it runs fine under WOW64).
+        TOOLCHAIN_FLAGS=()
+        if [[ "$MSYSTEM" == "MINGW32" ]]; then
+            TOOLCHAIN_FLAGS+=(--force-non-host)
+        fi
+
+        rustup toolchain install "$WIN_RUST_TOOLCHAIN" "${TOOLCHAIN_FLAGS[@]}"
         rustup override set "$WIN_RUST_TOOLCHAIN"
 
         rustup target add \
