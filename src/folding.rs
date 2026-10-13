@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
+
 use crate::ffi::*;
 use crate::pseudoknot::pk_pair_mismatches;
 use crate::structure::{get_pair_map, get_pk_pairs, strip_pseudoknots};
@@ -202,7 +203,7 @@ pub fn ensemble_diversity(seq: &str, target: &str) -> (f64, f64) {
         let fc = vrna_fold_compound(seq_c.as_ptr(), &md, VRNA_OPTION_PF as u32);
         assert!(!fc.is_null(), "fold_compound returned null");
 
-        let mut pf_struct: Vec<i8> = vec![0i8; n + 1];
+        let mut pf_struct: Vec<c_char> = vec![0; n + 1];
         
         
 
