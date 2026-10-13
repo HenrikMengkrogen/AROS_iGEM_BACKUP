@@ -743,21 +743,39 @@ setup_windows() {
 
     echo "Installing MSYS2 dependencies for $MSYSTEM ($WIN_PKG_PREFIX)..."
 
-    pacman -Sy --needed --noconfirm \
-        "${WIN_PKG_PREFIX}-toolchain" \
-        "${WIN_PKG_PREFIX}-clang" \
-        "${WIN_PKG_PREFIX}-pkgconf" \
-        "${WIN_PKG_PREFIX}-gmp" \
-        "${WIN_PKG_PREFIX}-mpfr" \
-        "${WIN_PKG_PREFIX}-gsl" \
-        git \
-        curl \
-        make \
-        autoconf \
-        automake \
-        libtool \
-        bison \
-        flex
+    # Mirrors occasionally stall ("Operation too slow"), which aborts the whole
+    # transaction, so retry and disable pacman's download timeout.
+    # `git` is intentionally not installed: it pulls in ~40 perl/ssh packages
+    # and nothing in this script needs it.
+    local attempt
+    local installed=0
+
+    for attempt in 1 2 3 4; do
+        if pacman -Sy --needed --noconfirm --disable-download-timeout \
+            "${WIN_PKG_PREFIX}-toolchain" \
+            "${WIN_PKG_PREFIX}-clang" \
+            "${WIN_PKG_PREFIX}-pkgconf" \
+            "${WIN_PKG_PREFIX}-gmp" \
+            "${WIN_PKG_PREFIX}-mpfr" \
+            "${WIN_PKG_PREFIX}-gsl" \
+            curl \
+            make \
+            autoconf \
+            automake \
+            libtool \
+            bison \
+            flex
+        then
+            installed=1
+            break
+        fi
+
+        warn "pacman failed (attempt $attempt/4); retrying in 15 s..."
+        sleep 15
+    done
+
+    [[ "$installed" -eq 1 ]] ||
+        die "Could not install MSYS2 packages after 4 attempts."
 
     local temp_dir
     local rna_archive
