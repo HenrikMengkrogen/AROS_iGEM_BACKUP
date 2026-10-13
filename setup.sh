@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# Ribologic setup
+# AROS setup
 #
 # Supported:
 #   - macOS (Intel and Apple Silicon)
 #   - Linux (x86_64 and arm64)
-#   - Native Windows through MSYS2 MinGW64
+#   - Native Windows through MSYS2:
+#       * "MSYS2 MinGW x64"  (MINGW64)     -> x86_64-pc-windows-gnu
+#       * "MSYS2 MinGW x86"  (MINGW32)     -> i686-pc-windows-gnu
+#       * "MSYS2 CLANGARM64" (CLANGARM64)  -> aarch64-pc-windows-gnullvm
 #   - WSL2 (treated as Linux)
 #
 # Native Windows prerequisite:
 #   1. Install MSYS2: https://www.msys2.org/
-#   2. Open "MSYS2 MinGW x64"
+#   2. Open one of the supported MSYS2 terminals listed above
 #   3. Clone this repository and run:
-#        ./setup.sh
+#        source ./setup.sh
 
 set -e
 
@@ -38,7 +41,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 PROJECT_DIR="$(pwd)"
 VENDOR_DIR="$PROJECT_DIR/vendor/RNAlib"
 
-echo "Ribologic Setup"
+echo "AROS Setup"
 echo "================"
 echo ""
 
@@ -47,6 +50,13 @@ echo ""
 OS_RAW="$(uname -s)"
 ARCH_RAW="$(uname -m)"
 
+# Windows-only settings, filled in below from $MSYSTEM.
+WIN_PREFIX=""            # MSYS2 environment prefix (/mingw64, /mingw32, /clangarm64)
+WIN_PKG_PREFIX=""        # pacman package prefix
+WIN_RUST_TOOLCHAIN=""    # rustup host toolchain matching the environment
+WIN_CC=""
+WIN_CXX=""
+
 case "$OS_RAW" in
     Darwin)
         OS="macos"
@@ -54,31 +64,63 @@ case "$OS_RAW" in
     Linux)
         OS="linux"
         ;;
-    MINGW*|MSYS*)
+    MINGW*|MSYS*|CLANG*|UCRT*)
         OS="windows"
         ;;
     CYGWIN*)
-        die "Cygwin is not supported. Install MSYS2 from https://www.msys2.org/ and run this script from the 'MSYS2 MinGW x64' terminal."
+        die "Cygwin is not supported. Install MSYS2 from https://www.msys2.org/ and run this script from a supported MSYS2 terminal (MinGW x64, MinGW x86 or CLANGARM64)."
         ;;
     *)
         die "Unsupported operating system: $OS_RAW"
         ;;
 esac
 
-case "$ARCH_RAW" in
-    x86_64|amd64)
-        ARCH="x86_64"
-        ;;
-    arm64|aarch64)
-        ARCH="arm64"
-        ;;
-    *)
-        die "Unsupported CPU architecture: $ARCH_RAW"
-        ;;
-esac
-
-if [[ "$OS" == "windows" && "$ARCH" != "x86_64" ]]; then
-    die "Native Windows setup currently supports x86_64 only."
+if [[ "$OS" == "windows" ]]; then
+    # NOTE: `uname -m` reports x86_64 in every MSYS2 environment on a 64-bit
+    # host (including MINGW32), so the architecture must come from $MSYSTEM.
+    case "${MSYSTEM:-}" in
+        MINGW64)
+            ARCH="x86_64"
+            WIN_PREFIX="/mingw64"
+            WIN_PKG_PREFIX="mingw-w64-x86_64"
+            WIN_RUST_TOOLCHAIN="stable-x86_64-pc-windows-gnu"
+            WIN_CC="gcc"
+            WIN_CXX="g++"
+            ;;
+        MINGW32)
+            ARCH="x86"
+            WIN_PREFIX="/mingw32"
+            WIN_PKG_PREFIX="mingw-w64-i686"
+            # Host toolchain must be 32-bit too: build scripts are linked with
+            # the environment's gcc, which is i686 in MINGW32.
+            WIN_RUST_TOOLCHAIN="stable-i686-pc-windows-gnu"
+            WIN_CC="gcc"
+            WIN_CXX="g++"
+            ;;
+        CLANGARM64)
+            ARCH="arm64"
+            WIN_PREFIX="/clangarm64"
+            WIN_PKG_PREFIX="mingw-w64-clang-aarch64"
+            WIN_RUST_TOOLCHAIN="stable-aarch64-pc-windows-gnullvm"
+            WIN_CC="clang"
+            WIN_CXX="clang++"
+            ;;
+        *)
+            die "Unsupported MSYS2 environment: '${MSYSTEM:-unset}'. Open 'MSYS2 MinGW x64', 'MSYS2 MinGW x86' or 'MSYS2 CLANGARM64' (not PowerShell, CMD, Git Bash, WSL, the plain MSYS2 shell, UCRT64 or CLANG64)."
+            ;;
+    esac
+else
+    case "$ARCH_RAW" in
+        x86_64|amd64)
+            ARCH="x86_64"
+            ;;
+        arm64|aarch64)
+            ARCH="arm64"
+            ;;
+        *)
+            die "Unsupported CPU architecture: $ARCH_RAW"
+            ;;
+    esac
 fi
 
 # Map the local machine to the exact Rust target/build.rs directory name.
@@ -97,6 +139,12 @@ case "$OS:$ARCH" in
         ;;
     windows:x86_64)
         RUST_TARGET="x86_64-pc-windows-gnu"
+        ;;
+    windows:x86)
+        RUST_TARGET="i686-pc-windows-gnu"
+        ;;
+    windows:arm64)
+        RUST_TARGET="aarch64-pc-windows-gnullvm"
         ;;
     *)
         die "No Rust target mapping is available for $OS ($ARCH)."
@@ -153,7 +201,7 @@ fi
 # /c/Users/runneradmin
 if [[ "$OS" == "windows" ]]; then
     have cygpath ||
-        die "cygpath was not found. Run this script from MSYS2 MINGW64."
+        die "cygpath was not found. Run this script from a supported MSYS2 terminal."
 
     WINDOWS_HOME="$(cygpath -u "$USERPROFILE")"
 
@@ -161,7 +209,7 @@ if [[ "$OS" == "windows" ]]; then
     export RUSTUP_HOME="${RUSTUP_HOME:-$WINDOWS_HOME/.rustup}"
     export PATH="$CARGO_HOME/bin:$PATH"
 
-    export LIBCLANG_PATH="${LIBCLANG_PATH:-/mingw64/bin}"
+    export LIBCLANG_PATH="${LIBCLANG_PATH:-$WIN_PREFIX/bin}"
 
     # Persist these variables for subsequent GitHub Actions steps.
     #
@@ -169,11 +217,11 @@ if [[ "$OS" == "windows" ]]; then
     # cygpath -w makes the path readable by the Windows runner.
     if [[ -n "${GITHUB_PATH:-}" ]]; then
         cygpath -w "$CARGO_HOME/bin" >> "$GITHUB_PATH"
-        cygpath -w "/mingw64/bin" >> "$GITHUB_PATH"
+        cygpath -w "$WIN_PREFIX/bin" >> "$GITHUB_PATH"
     fi
 
     if [[ -n "${GITHUB_ENV:-}" ]]; then
-        echo "LIBCLANG_PATH=/mingw64/bin" >> "$GITHUB_ENV"
+        echo "LIBCLANG_PATH=$(cygpath -w "$WIN_PREFIX/bin")" >> "$GITHUB_ENV"
         echo "CARGO_HOME=$(cygpath -w "$CARGO_HOME")" >> "$GITHUB_ENV"
         echo "RUSTUP_HOME=$(cygpath -w "$RUSTUP_HOME")" >> "$GITHUB_ENV"
     fi
@@ -188,7 +236,7 @@ fi
 setup_rust() {
     if [[ "$OS" == "windows" ]]; then
         have cygpath ||
-            die "cygpath was not found. Run this script from MSYS2 MinGW x64."
+            die "cygpath was not found. Run this script from a supported MSYS2 terminal."
 
         # If Cargo is already visible, preserve the existing configuration.
         #
@@ -255,19 +303,19 @@ setup_rust() {
         die "Rust installation failed: rustup was not found."
 
     if [[ "$OS" == "windows" ]]; then
-        echo "Installing/selecting Windows GNU Rust toolchain..."
+        echo "Installing/selecting Windows Rust toolchain: $WIN_RUST_TOOLCHAIN"
 
-        rustup toolchain install stable-x86_64-pc-windows-gnu
-        rustup override set stable-x86_64-pc-windows-gnu
+        rustup toolchain install "$WIN_RUST_TOOLCHAIN"
+        rustup override set "$WIN_RUST_TOOLCHAIN"
 
         rustup target add \
-            --toolchain stable-x86_64-pc-windows-gnu \
-            x86_64-pc-windows-gnu
+            --toolchain "$WIN_RUST_TOOLCHAIN" \
+            "$RUST_TARGET"
 
         # Only relevant in GitHub Actions; harmless for local users.
         if [[ -n "${GITHUB_PATH:-}" ]]; then
             cygpath -w "$(dirname "$(command -v cargo)")" >> "$GITHUB_PATH"
-            cygpath -w "/mingw64/bin" >> "$GITHUB_PATH"
+            cygpath -w "$WIN_PREFIX/bin" >> "$GITHUB_PATH"
         fi
     else
         rustup target add "$RUST_TARGET"
@@ -650,31 +698,40 @@ build_viennarna_native() {
 }
 
 
-# ── Native Windows through MSYS2 MinGW64 ────────────────────────
+# ── Native Windows through MSYS2 (MINGW64 / MINGW32 / CLANGARM64) ─
 
 setup_windows() {
-    [[ "${MSYSTEM:-}" == "MINGW64" ]] ||
-        die "Run this script from the 'MSYS2 MinGW x64' terminal, not PowerShell, CMD, Git Bash, WSL, or the plain MSYS2 terminal."
+    # MSYSTEM was already validated during platform detection.
+    have pacman ||
+        die "pacman was not found. Run this script from a supported MSYS2 terminal."
 
-    export PATH="/mingw64/bin:$PATH"
-    export PKG_CONFIG_PATH="/mingw64/lib/pkgconfig"
+    export PATH="$WIN_PREFIX/bin:$PATH"
+    export PKG_CONFIG_PATH="$WIN_PREFIX/lib/pkgconfig"
 
-    export LIBCLANG_PATH="/mingw64/bin"
+    export LIBCLANG_PATH="$WIN_PREFIX/bin"
 
     if [[ -n "${GITHUB_ENV:-}" ]]; then
-        echo "LIBCLANG_PATH=/mingw64/bin" >> "$GITHUB_ENV"
+        echo "LIBCLANG_PATH=$(cygpath -w "$WIN_PREFIX/bin")" >> "$GITHUB_ENV"
     fi
 
+    # The gnullvm target links with clang rather than gcc.
+    if [[ "$MSYSTEM" == "CLANGARM64" ]]; then
+        export CARGO_TARGET_AARCH64_PC_WINDOWS_GNULLVM_LINKER="${CARGO_TARGET_AARCH64_PC_WINDOWS_GNULLVM_LINKER:-clang}"
 
-    echo "Installing MSYS2 MinGW dependencies..."
+        if [[ -n "${GITHUB_ENV:-}" ]]; then
+            echo "CARGO_TARGET_AARCH64_PC_WINDOWS_GNULLVM_LINKER=clang" >> "$GITHUB_ENV"
+        fi
+    fi
+
+    echo "Installing MSYS2 dependencies for $MSYSTEM ($WIN_PKG_PREFIX)..."
 
     pacman -Sy --needed --noconfirm \
-        mingw-w64-x86_64-toolchain \
-        mingw-w64-x86_64-clang \
-        mingw-w64-x86_64-pkgconf \
-        mingw-w64-x86_64-gmp \
-        mingw-w64-x86_64-mpfr \
-        mingw-w64-x86_64-gsl \
+        "${WIN_PKG_PREFIX}-toolchain" \
+        "${WIN_PKG_PREFIX}-clang" \
+        "${WIN_PKG_PREFIX}-pkgconf" \
+        "${WIN_PKG_PREFIX}-gmp" \
+        "${WIN_PKG_PREFIX}-mpfr" \
+        "${WIN_PKG_PREFIX}-gsl" \
         git \
         curl \
         make \
@@ -684,14 +741,12 @@ setup_windows() {
         bison \
         flex
 
-    #rustup target add "$WINDOWS_TARGET"
-
     local temp_dir
     local rna_archive
 
     temp_dir="$(mktemp -d)"
 
-    echo "Building ViennaRNA $VIENNARNA_WINDOWS_VERSION for Windows MinGW..."
+    echo "Building ViennaRNA $VIENNARNA_WINDOWS_VERSION for $RUST_TARGET..."
 
     pushd "$temp_dir" >/dev/null
 
@@ -706,15 +761,15 @@ setup_windows() {
     tar -xf "ViennaRNA-${VIENNARNA_WINDOWS_VERSION}.tar.gz"
     cd "ViennaRNA-${VIENNARNA_WINDOWS_VERSION}"
 
-    export CC=gcc
-    export CXX=g++
-    export CPPFLAGS="-I$PWD/src -I/mingw64/include"
+    export CC="$WIN_CC"
+    export CXX="$WIN_CXX"
+    export CPPFLAGS="-I$PWD/src -I$WIN_PREFIX/include"
     export CFLAGS="-std=gnu17 -fno-lto"
     export CXXFLAGS="-std=gnu++17 -fno-lto -include cstdint"
-    export LDFLAGS="-fno-lto -L/mingw64/lib -lws2_32 -lwinmm"
+    export LDFLAGS="-fno-lto -L$WIN_PREFIX/lib -lws2_32 -lwinmm"
 
     ./configure \
-        --prefix="/mingw64" \
+        --prefix="$WIN_PREFIX" \
         --disable-shared \
         --enable-static \
         --without-openmp \
@@ -732,10 +787,10 @@ setup_windows() {
     mkdir -p "$WINDOWS_VENDOR_LIB_DIR"
 
     cp "$rna_archive" "$WINDOWS_VENDOR_LIB_DIR/libRNA.a"
-    cp /mingw64/lib/libgmp.a "$WINDOWS_VENDOR_LIB_DIR/libgmp.a"
-    cp /mingw64/lib/libmpfr.a "$WINDOWS_VENDOR_LIB_DIR/libmpfr.a"
-    cp /mingw64/lib/libgsl.a "$WINDOWS_VENDOR_LIB_DIR/libgsl.a"
-    cp /mingw64/lib/libgslcblas.a "$WINDOWS_VENDOR_LIB_DIR/libgslcblas.a"
+    cp "$WIN_PREFIX/lib/libgmp.a" "$WINDOWS_VENDOR_LIB_DIR/libgmp.a"
+    cp "$WIN_PREFIX/lib/libmpfr.a" "$WINDOWS_VENDOR_LIB_DIR/libmpfr.a"
+    cp "$WIN_PREFIX/lib/libgsl.a" "$WINDOWS_VENDOR_LIB_DIR/libgsl.a"
+    cp "$WIN_PREFIX/lib/libgslcblas.a" "$WINDOWS_VENDOR_LIB_DIR/libgslcblas.a"
 
     popd >/dev/null
     rm -rf "$temp_dir"
@@ -743,7 +798,7 @@ setup_windows() {
     windows_vendor_complete ||
         die "Windows libraries were not staged correctly in $WINDOWS_VENDOR_LIB_DIR."
 
-    ok "Windows GNU libraries ready in $WINDOWS_VENDOR_LIB_DIR"
+    ok "Windows libraries ready in $WINDOWS_VENDOR_LIB_DIR"
 }
 
 # ── Main ────────────────────────────────────────────────────────
@@ -775,7 +830,7 @@ case "$OS" in
 
     windows)
         if windows_vendor_complete; then
-            ok "Windows GNU vendored libraries already present"
+            ok "Windows vendored libraries already present"
         else
             setup_windows
         fi
