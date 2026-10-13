@@ -28,11 +28,11 @@ pub fn mutate_seq(
     let paired_nucleotides: &[char] = if GC_TEST || last_global {
         &['G', 'C']
     } else {
-        //&['A', 'U', 'G', 'G', 'G', 'C', 'C', 'C', 'G', 'C']
-        &['A', 'U', 'C', 'G']
+        &['A', 'U', 'G', 'G', 'G', 'C', 'C', 'C', 'G', 'C'] // 80% chance for GC pair
+        //&['A', 'U', 'C', 'G'] // 50% chance for GC pair
     };
 
-    let purines: &[char] = if GC_TEST { &['G', 'C'] } else { &['A', 'U'] };
+    let purines: &[char] = if GC_TEST { &['G', 'C'] } else { &['A', 'U', 'C', 'G'] };
 
     let mut mut_seq: Vec<char> = seq_in.chars().collect();
     let mut_struct: Vec<char> = structure.chars().collect();

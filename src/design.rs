@@ -6,7 +6,7 @@ use rand::RngExt;
 use rayon::prelude::*;
 
 use crate::cleanup::{diversify_sequence, gc_cleanup};
-use crate::config::{GC_TEST, GC_THRESHOLD, RIBOSOMAL_RNA};
+use crate::config::{GC_TEST, GC_THRESHOLD, RIBOSOMAL_RNA, GC_LOWER_THRESHOLD};
 use crate::decomposition::decompose;
 use crate::folding::{bp_distance_to_target, ensemble_diversity};
 use crate::hill_climb::{hill_climb_design, multi_start_hill_climb_design};
@@ -698,10 +698,11 @@ pub fn decomposed_hill_climb_design(
         full_seq
     } else {
         gc_cleanup(
-            &diversify_sequence(&full_seq, start_seq, target, GC_THRESHOLD),
+            &diversify_sequence(&full_seq, start_seq, target, GC_THRESHOLD, GC_LOWER_THRESHOLD,),
             start_seq,
             target,
             GC_THRESHOLD,
+            GC_LOWER_THRESHOLD,
         )
     };
 

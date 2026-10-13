@@ -9,7 +9,8 @@ pub fn gc_cleanup(
     seq_in: &str,
     original_annotation: &str,
     target: &str,
-    min_gc_percent: f64,
+    max_gc_percent: f64,
+    min_gc_percent : f64,
 ) -> String {
     assert_eq!(seq_in.len(), original_annotation.len());
     assert_eq!(seq_in.len(), target.len());
@@ -34,13 +35,13 @@ pub fn gc_cleanup(
 
     pairs.shuffle(&mut rng);
 
-    let step = 200.0 / seq.len() as f64;
+    
     let mut gc = gc_content(&String::from_utf8(seq.clone()).unwrap()).unwrap_or(0.0);
 
     let mut total_replacements = 0usize;
 
     for &(i, j) in &pairs {
-        if gc - step < min_gc_percent {
+        if gc > min_gc_percent && gc < max_gc_percent{
             break;
         }
 
@@ -83,7 +84,8 @@ pub fn gc_cleanup(
             seq = trial;
             current_dist = trial_result.bp_distance;
             current_result = trial_result;
-            gc -= step;
+            gc = gc_content(&current_result.sequence).unwrap_or(0.0);
+            
             total_replacements += 1;
         }
     }
@@ -100,7 +102,8 @@ pub fn diversify_sequence(
     seq_in: &str,
     original_annotation: &str,
     target: &str,
-    min_gc_percent: f64,
+    max_gc_percent: f64,
+    min_gc_percent : f64,
 ) -> String {
     assert_eq!(seq_in.len(), original_annotation.len());
     assert_eq!(seq_in.len(), target.len());
@@ -110,7 +113,7 @@ pub fn diversify_sequence(
     let mut seq: Vec<u8> = seq_in.as_bytes().to_vec();
     let mut rng = rand::rng();
 
-    let current_result = bp_distance_to_target(&String::from_utf8(seq.clone()).unwrap(), target);
+    let mut current_result = bp_distance_to_target(&String::from_utf8(seq.clone()).unwrap(), target);
     let mut current_dist = current_result.bp_distance;
 
     let mut pairs: Vec<(usize, usize)> = pair_map
@@ -129,11 +132,11 @@ pub fn diversify_sequence(
 
     pairs.shuffle(&mut rng);
 
-    let step = 200.0 / seq.len() as f64;
+    
     let mut gc = gc_content(&String::from_utf8(seq.clone()).unwrap()).unwrap_or(0.0);
 
     for &(i, j) in &pairs {
-        if gc - step < min_gc_percent {
+        if gc > min_gc_percent && gc < max_gc_percent{
             break;
         }
 
@@ -174,8 +177,8 @@ pub fn diversify_sequence(
         if let Some((trial, trial_result)) = best_trial {
             seq = trial;
             current_dist = trial_result.bp_distance;
-            //current_result = trial_result;
-            gc -= step;
+            current_result = trial_result;
+            gc = gc_content(&current_result.sequence).unwrap_or(0.0);
         }
     }
 
