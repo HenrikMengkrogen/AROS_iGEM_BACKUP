@@ -1,0 +1,10 @@
+==== FINAL (run 18) ====
+sequence      : AGUCAACAUCAGUCUGAUAAGCUACAAACACCAUUGUCACACUCCAUCAUUUGCAUCUUGCCUCUAUCAUGACAAUGGUGUUUGACGCGUGUCAGACUGAUGUUGACUGUAUCGCUAACGGCACGGGCCGCUUUUCCAUCAAGAACAGGCCACCAUGGAAAAGCGGCCCGUGCCG
+target        : (((((((((((((((((.......(((((((((((((((..............................))))))))))))))).......)))))))))))))))))..........(((((((((((((((((((((...............)))))))))))))))))))))
+mfe structure : (((((((((((((((((.......(((((((((((((((..............................))))))))))))))).......)))))))))))))))))..........(((((((((((((((((((((...............)))))))))))))))))))))
+bp_distance   : 0
+mfe           : -99.20
+Ensemble Diversity : 7.24
+slices        : 3
+Ribosomal RNA used: false
+GC Content: 49.71%

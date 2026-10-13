@@ -1,2 +1,2 @@
-Sequence: NNNKNNNNKNNNNNKNNNNKNNUUCGNNKNNNNKNNNNNNKNNNNKNNUUCGNNKNNNNKNNNNNNKNNNAANNNNNNANNNKNNNNNKNNNNKNNNNNNNNNKNNNNNNNNKNNAANNNNNNANNKNNNNNNNKNNNNKNNUUCGNNKNNNNKNNNNKNNNNNKNNNUUCGNNNKNNNNNKNNNNNKNNNNNN
-Structure: ((((((((((((((((((((((....)))))))))))(((((((((((....)))))))))))(((((((..[[[[[[.))))))))))))))))))((((((((((((((((((..]]]]]].)))))))(((((((((((....)))))))))))(((((((((((....))))))))))))))))))))))
+Sequence: AGUCAACAUCAGUCUGAUAAGCUACAAACACCAUUGUCACACUCCANNNNNNNNNNNNNNNNNNNNNNNUGACAAUGGUGUUUGNNNNNNNUCAGACUGAUGUUGACUNNNNNNNNNNNNNNNNNNNNNNNUUUUCCAUCAAGAACAGGCCACCAUGGAAAANNNNNNNNNNNNN
+Structure: (((((((((((((((((.......(((((((((((((((..............................))))))))))))))).......)))))))))))))))))..........(((((((((((((((((((((...............)))))))))))))))))))))
