@@ -132,34 +132,40 @@ A Rust-based RNA sequence design tool built on the
 [ViennaRNA](https://www.tbi.univie.ac.at/RNA/) library. Given a target
 RNA secondary structure in dot-bracket notation, it searches for
 sequences that fold into that structure. It uses ViennaRNA's
-minimum-free-energy (MFE) folding to score candidates, runs several
-rounds of a parallel multi-start hill-climbing design procedure, and
-reports the best results.
+minimum-free-energy (MFE) folding to score candidates, designs the
+target slice by slice with parallel multi-start hill climbing, repairs
+the assembled sequence globally, and reports the best result.
 
 Team wiki: https://2026.igem.wiki/aarhus-university/
 
 The program supports two sequence-generation modes:
 
-1.  **Generate from ambiguous nucleotides** Generate sequences from an
+1.  **Generate from ambiguous nucleotides.** Generate sequences from an
     input sequence containing ambiguous RNA nucleotide symbols such as:
 
     -   `N` --- any nucleotide
     -   `K` --- `G` or `U`
     -   `S` --- `G` or `C`
 
-2.  **Generate from a preferred starting sequence** When
+    Only positions marked `N`, `K` or `S` are designed. All other
+    positions are kept as given.
+
+2.  **Generate from a preferred starting sequence.** When
     `const RIBOSOMAL_RNA : bool = true;` is enabled in the program
     configuration, generation begins from the ribosomal large-subunit
-    rRNA sequence, or any other query sequence of your choice.
+    rRNA sequence, or any other query sequence of your choice. Only the
+    positions inserted from that sequence are mutated, and known
+    conserved motifs are protected.
 
     The output includes a percentage score indicating how much of the
-    original sequence remains in the generated sequence. Note that with
-    this method the program uses longer time to converge towards target
-    structure, or might not quite reach it at all (`bp_distance > 0`)
+    original sequence remains in the generated sequence. With this
+    method the program takes longer to converge towards the target
+    structure, or might not reach it at all (`bp_distance > 0`). GC
+    cleanup is skipped in this mode.
 
 Other features:
 
--   Configurable number of design rounds and parallel runs.
+-   Configurable number of complete runs and parallel starts.
 -   Optional scrollable in-terminal viewer for the results, so you don't
     have to open multiple output files to find a candidate.
 -   Cross-platform: macOS (Intel and Apple Silicon), Linux, and Windows.
@@ -170,52 +176,64 @@ Other features:
 ## How it works
 
 AROS designs sequences in four stages. It splits the target into
-nested **slices**, designs each slice with a hill-climbing search,
-repairs the assembled sequence globally, and finally verifies and
-annotates pseudoknots.
+**slices**, designs each slice with a hill-climbing search (children
+before parents), repairs the assembled sequence globally, and finally
+verifies and annotates pseudoknots.
 
 ```mermaid
-
 flowchart TD
-    A[Read input] --> B[Get pair map]
-    B --> C[Split nested slices]
-    C --> D[Design slices<br/>children → parents]
-    D --> E[Repair slices<br/>children → parents]
-    E --> F{Distance > threshold?}
-    F --> |Yes| E
-    F --> |No| G[Assemble sequence<br/>fill N/K/S]
-    G --> H[ViennaRNA fold<br/>check BP distance]
-    H --> I{Distance > 0?}
-    I -->|Yes| J[Global + 2 focused repair and filter for lowest ensemble diversity]
-    I -->|No| K[Reduce GC pairs, calculate and filter for lowest ensemble diversity]
-    J --> K
-    K --> L[Final verification]
-
-    L --> M[Annotate pseudoknots<br/>optional PKplex]
-    M --> N[Report results]
-
-    
+    A[Read input] --> B[Decompose target into nested slices]
+    B --> C[For each slice, children first:<br/>multi-start hill climb on designable positions]
+    C --> D[Refine: up to 25 rounds on remaining mismatches<br/>stop after 2 rounds without improvement]
+    D --> E[Record unresolved mismatches<br/>re-opened in the parent slice]
+    E --> C
+    E --> F[Assemble: fill leftover N/K/S randomly,<br/>fix invalid pseudoknot pairs]
+    F --> G{Distance > 0?}
+    G -->|Yes| H[Global repair: multi-start over all designable positions]
+    H --> I[First focused repair: hill climb from each pool seed]
+    I --> J[Final repair: mismatched positions only]
+    G -->|No| K
+    J --> K[GC cleanup, skipped in rRNA mode]
+    K --> L[Final verification and PKplex annotation]
+    L --> M[Report results]
 ```
-
 
 ### 1. Slicing the target
 
 ViennaRNA's MFE algorithm (Zuker) runs in O(n³), so folding one long
 sequence over and over is slow. Instead the target is broken into
-smaller problems, **slices**, which are solved in parallel:
+smaller problems, **slices**.
 
-```mermaid
-flowchart LR
-    A[Full target structure] --> B[Identify top-level stem-loops]
-    B --> C[Descend into nested child loops]
-    C --> D[Design innermost slice first]
-    D --> E{"Base-pair distance > 0?"}
-    E -->|Yes| H[Repair]
-    E -->|No| I[Insert child sequence into full sequence]
-    H --> E
-    I --> J[Design parent slice with child fixed]
-    J --> K[Continue outward and assemble]
-```
+The target may use only `(`, `)`, `.` and `_`, plus one pseudoknot
+bracket pair `[` `]`. Other bracket types are rejected.
+
+The target is split into top-level blocks, and each block is split
+recursively. A slice is one helix stack (a run of directly stacked base
+pairs) together with the unpaired nucleotides at that level: the hairpin
+loop, or the bulge, internal-loop and multiloop nucleotides. Nested
+stem-loops become their own child slices. Nucleotides between top-level
+stems belong to no slice. They are filled randomly after the slice stage
+and are only optimized during global repair.
+
+Pseudoknot brackets are removed from slice structures, so pseudoknot
+positions are treated as unpaired during slice design. Pseudoknot pairs
+are first enforced at the global stage.
+
+Slices are processed one after another in post-order, so children are
+designed before their parents. For each slice, only positions that are
+ambiguous (`N`, `K`, `S`) in the input are designable. Before a slice is
+designed, those positions, plus any mismatches left over from its
+children, are reset to `N`. This is how a parent slice repairs the
+unresolved parts of its children. Parallelism comes from the independent
+hill-climbing starts within a slice (see below), not from running slices
+concurrently.
+
+Each slice is designed with `multi_start_hill_climb_design()` using the
+full step budget, or 50 steps for slices longer than 150 nucleotides
+with fewer than 40 designable positions. The result is then refined for
+up to 25 rounds of 50 steps, each restricted to the positions that still
+mismatch. Refinement stops early after two rounds without improvement.
+Mismatches that survive are recorded and passed on to the parent slice.
 
 The `slices` value in the output is the number of slices the target was
 split into.
@@ -224,43 +242,95 @@ split into.
 
 Each slice is passed to `multi_start_hill_climb_design()`, which runs
 several independent `hill_climb_design()` searches in parallel (5 by
-default). Each search works like this:
+default). Each search keeps only its single best candidate. The
+candidates from all runs are then pooled and sorted by base-pair
+distance, with ties broken by MFE.
 
+Each search is a greedy hill climb wrapped in simulated-annealing
+acceptance:
 
-
-``` mermaid
-
+```mermaid
 flowchart TD
-    A[Initialize candidate sequence] --> B[Fold with ViennaRNA MFE and score]
-    B --> C{Success or early-exit condition?}
-    C -- Yes --> Z[return best candidates]
-    C -- No --> D[Choose mutation position] 
-    D --> E{Stuck near solution?}
-    E -- No --> F[Single-site or paired-base mutation]
-    E -- Yes --> G[Increase mutable positions]
-    G --> N{Still stuck?}
-    N --> |Yes| O[Double mutation]
-    O --> H
-    N --> |No| H
-    F --> H[Fold and score candidate]
+    A[Initialize: mutate template, G-C clamp next to weak fixed pairs] --> B[Score: MFE distance, PK penalty, energy gap]
+    B --> C{Distance 0 or early exit?}
+    C -- Yes --> Z[Return best candidate]
+    C -- No --> D{Stuck >100 steps and distance ≤ 2?}
+    D -- Yes --> E[Double mutation: best of up to 300 trials]
+    D -- No --> F[Pick site, 70% from mismatched positions]
+    F --> G[Fold every nucleotide or pair option, apply the lowest-cost one]
+    E --> H[Score candidate]
     G --> H
     H --> I{Accept?}
-    I -- Yes --> J[Update current state and best pool]
+    I -- Yes --> J[Update current state and best]
     I -- No --> K[Keep current state]
-    J --> M[Remove solved positions from mutable list]
-    M --> L[Cool temperature]
+    J --> L[Every 20 steps: expand or shrink designable positions]
     K --> L
-    L --> C
+    L --> M[Cool temperature; stop if stalled]
+    M --> C
 ```
 
+#### Initialization
 
-For slices, the search exits early when the base-pair distance falls
-below a threshold that depends on the number of designable positions
-and the partition function shows that the remaining
-nucleotides are only weakly paired (always below 0.7).
+The starting sequence is built by `mutate_seq()`:
+
+- **Pair with a fixed partner:** the complement of the fixed base.
+- **`K` / `S` pairs:** `K` becomes G or U and `S` becomes G or C. With
+  probability `wobble_frequency`, a G on the 5' side is paired with U.
+- **Hairpins with a four-nucleotide loop** (when all six positions are
+  designable): a UUCG loop with a G–C closing pair.
+- **Pairs adjacent to a loop:** G–C, plus the next two inward pairs if
+  they are stacked and designable.
+- **All other pairs:** G–C with 80% probability, otherwise A–U. In the
+  refinement and repair stages (`last_global`), all pairs start as G–C.
+- **Unpaired positions:** uniform over A, U, G and C.
+
+In ribosomal mode, `mutate_ribosome()` is used instead. It changes a
+designable pair to G–C with probability 0.2, clamps loop-adjacent pairs
+to G–C, switches unpaired positions to A or G with probability 0.2, and
+leaves conserved motifs untouched.
+
+The GC bias is deliberate: GC-rich stems fold reliably, and the cleanup
+step lowers GC afterwards.
+
+#### Choosing a mutation
+
+Each step picks one designable position. With 70% probability it is
+drawn from the positions that currently mismatch the target, otherwise
+from all designable positions.
+
+- **Unpaired position:** all four nucleotides are tried.
+- **Paired position, partner designable:** all six allowed pair types
+  (AU, UA, GC, CG, GU, UG) are tried together.
+- **Paired position, partner fixed:** all four nucleotides are scored,
+  but if the best option is the one already in place, the base
+  complementary to the fixed partner is applied instead.
+
+Every option is folded with ViennaRNA and scored as
+
+```math
+\text{cost} = D_{\text{VRNA}} + 2 \times N_{\text{invalid PK pairs}}
+```
+
+and the lowest-cost option is applied. If the best option is the one
+already in place, a random alternative is applied instead, so the search
+never stands still. This step uses the base-pair distance only; the
+energy gap is not used here.
+
+**Double mutation.** If the search has not improved for more than 100
+steps, the distance is at most 2, and at least 25 steps have passed
+since the last double mutation, the search scans pairs of positions (the
+mismatched ones if there are at least two, otherwise random designable
+ones, capped at 30 positions) and applies the best of at most 300
+trials.
+
+**Adapting the designable set.** Every 20 steps, if the distance is at
+most 6 and the search has stagnated for 12 steps, the designable set is
+expanded around the mismatches. Otherwise, if at least 60 steps have
+passed since the last expansion, the set is shrunk toward the mismatches
+(down to a minimum of 15 positions).
 
 #### Scoring a candidate
- 
+
 1.  **Strip pseudoknots.** ViennaRNA does not fold pseudoknots directly,
     so `[` and `]` in the target are converted to dots.
 2.  **Mask fixed bases.** Fixed bases at positions that are unpaired in
@@ -268,105 +338,145 @@ nucleotides are only weakly paired (always below 0.7).
 3.  **Fold.** ViennaRNA computes the MFE structure.
 4.  **Measure the distance** to the pseudoknot-stripped target with
     `vrna_bp_distance()`:
-``` math
+
+```math
 D_{\text{VRNA}} = \text{BPDistance}(S_{\text{MFE}},\, S_{\text{target without PK}})
 ```
- 
-Pseudoknot pairs are stored in a pair map, mutated together with the
-sequence, and scored with a penalty for each invalid pair and
-wobble-baspair:
- 
-``` math
+
+Pseudoknot pairs are stored in a pair map and penalized for each pair
+that cannot form a valid base pair (this applies from the global stage,
+since slice structures contain no pseudoknots):
+
+```math
 D_{\text{candidate}} = D_{\text{VRNA}} + 2 \times N_{\text{invalid PK pairs}}
 ```
- 
+
 A score of `0` means the candidate folds exactly into the target.
- 
+
 #### Energy gap
- 
+
 Two candidates can tie on $D_{\text{candidate}}$ while differing in how
-*thermodynamically favorable* the target fold actually is for each of
-them — one sequence might only be reachable within that base-pair
-distance, while another actually folds into it as its true minimum-free-
-energy structure. `energy_of_target_structure` measures this directly:
- 
-``` math
+thermodynamically favorable the target fold is for each. The energy gap
+measures this:
+
+```math
 \Delta E = \max\!\Big(0,\; E(S_{\text{target}} \mid \text{seq}) - E_{\text{MFE}}(\text{seq})\Big)
 ```
- 
-- $E(S_{\text{target}} \mid \text{seq})$ is the free energy of folding the candidate sequence specifically into the *target* structure (via `vrna_eval_structure`), whether or not that's the sequence's actual MFE fold.
-- $E_{\text{MFE}}(\text{seq})$ is the free energy of the sequence's true MFE structure, from `vrna_mfe`.
-- The gap is clamped at `0`, since the target structure can never be more stable than the true MFE structure.
-A gap of `0` means the target structure *is* the sequence's MFE fold — the strongest possible outcome. A larger gap means the target is only a local, less-favored fold, making it more likely the sequence "escapes" to a different structure in practice. `current_energy_gap` is recomputed every time a candidate is accepted, so it always reflects the live current state rather than a stale prior candidate.
- 
-#### Accepting candidates
- 
-A candidate replaces the current one if its distance is lower, or if the
-distance is equal and its **energy gap** $\Delta E$ is smaller (same
-structure, more thermodynamically stable). Even on a tied distance with
-a larger gap, the candidate can still be accepted probabilistically:
- 
-``` math
-P(\text{accept tied, worse gap}) = \exp\!\left(-\frac{\Delta E_{\text{candidate}} - \Delta E_{\text{current}}}{T}\right)
-```
- 
-A worse candidate is still accepted with probability
- 
-``` math
-P(\text{accept worse}) = \exp\!\left(-\frac{D_{\text{candidate}} - D_{\text{current}}}{T}\right)
-```
- 
-where the temperature $T$ decreases linearly over time, so the search
-shifts from exploring to refining. If progress stalls once $T$ reaches
-its minimum of `0.05`, it is reset to `1`. The cooling rate is set from
-the number of designable positions.
 
+- $E(S_{\text{target}} \mid \text{seq})$ is the free energy of the
+  candidate folded into the *target* structure (`vrna_eval_structure`).
+- $E_{\text{MFE}}(\text{seq})$ is the free energy of the sequence's true
+  MFE structure (`vrna_mfe`).
+
+A gap of `0` means the target is the sequence's MFE fold. The gap is
+recomputed every time a candidate is accepted, and it is used only in
+the acceptance step below.
+
+#### Accepting candidates
+
+After a mutation, the candidate is scored in full (distance and energy
+gap) and then:
+
+- If its distance is **lower**, it is accepted.
+- If its distance is **equal**, it is accepted when its gap is smaller
+  or equal, and otherwise with probability
+```math
+  P = \exp\!\left(-\frac{\Delta E_{\text{candidate}} - \Delta E_{\text{current}}}{T}\right)
+```
+- If its distance is **higher**, it is accepted with probability
+```math
+  P = \exp\!\left(-\frac{D_{\text{candidate}} - D_{\text{current}}}{T}\right)
+```
+
+The temperature falls geometrically from 1 toward 0.01 over the step
+budget, with a floor of 0.05, so the search shifts from exploring to
+refining.
+
+#### Stopping
+
+A search ends when any of the following happens:
+
+- It has found a candidate with distance 0.
+- **Stall:** no improvement for 100 steps (200 steps when the distance
+  is at most 6).
+- **Early exit:** checked every 50 steps once the distance is at or
+  below a threshold that depends on the number of *fixed* positions
+  $n_{\text{fixed}}$:
+
+  | Mode | Distance threshold |
+  |---|---|
+  | Slice | $\lceil n_{\text{fixed}} / 12 \rceil$ |
+  | Global, rRNA mode | $\lceil n_{\text{fixed}} / 6 \rceil$ |
+  | Global, otherwise | 0 |
+
+  At that point the partition function is evaluated. For every mismatch
+  in a position that was originally fixed, the probability of being
+  paired is estimated as $1 - \text{defect}$, and the search exits if
+  the highest such value is below a threshold:
+
+  | Stage | Pair-probability threshold |
+  |---|---|
+  | Slice with more than 60% fixed positions, or target with hard loops (non-final) | 0.25 |
+  | Other non-final searches | 0.20 |
+  | Slice refinement rounds and the focused and final global repairs | 0.10 |
+
+  For slices, the search also exits on the distance criterion alone.
 
 ### 3. Repairing the full sequence
 
-**Global repair.** The best slice designs are assembled into the full
-sequence and the base-pair distance is recomputed. The remaining
-mismatched positions are then repaired in parallel for at most 800
-iterations, where the iteration count scales with the distance:
+**Assembly.** Remaining `N`, `K` and `S` positions are filled randomly.
+Any pseudoknot pair in the target that is not a valid Watson–Crick pair
+is replaced by a random valid one.
 
-``` math
-\text{repair steps} = \min\left(800,\; \frac{d_{\text{bp}}}{0.008}\right)
+**Global repair.** If the assembled sequence is not at distance 0,
+`multi_start_hill_climb_design()` runs over all designable positions for
+
+```math
+\text{steps} = \min\!\left(50,\; \max\!\left(1,\; \text{round}\!\left(\tfrac{d_{\text{bp}}}{0.008}\right)\right)\right)
 ```
 
-where $d_{\text{bp}}$ is the base-pair distance of the assembled
-sequence.
+steps, where $d_{\text{bp}}$ is the base-pair distance of the assembled
+sequence. This equals 50 for any non-zero distance. The pool of results
+plus the pre-repair sequence is deduplicated and cut to 16 candidates.
+The best is chosen by base-pair distance, then by ensemble diversity
+(nested plus pseudoknot). It replaces the original only if its distance
+is lower.
 
-It stops when the iteration limit is reached, or when the distance is
-below a precomputed threshold and the partition function shows low pair
-probabilities (about 0.5). A repaired sequence replaces the original
-only if it improves on it.
+**First focused repair.** If the distance is still above 0, each pooled
+candidate is refined by a separate `hill_climb_design()` run (up to 50
+steps, all pairs initialised as G–C, stricter pair-probability
+threshold) over all designable positions. The pool is again
+deduplicated, cut to 16 and ranked by distance, then ensemble diversity.
 
-**The final focused repairs.** If the distance is still not below 2--3,
-`multi_start_hill_climb_design()` runs twice more on the remaining
-mismatches. This time all paired nucleotides start as G--C pairs to
-favour strong stems. The exit criteria are stricter on pair
-probabilities (0.1) and looser on distance (3--5), and the iteration
-count is clamped between 1 and 100.
+**Final repair.** If the distance is still above 0, each pool sequence
+is refined once more, this time restricted to the designable positions
+that currently mismatch. Selection is again by distance, then ensemble
+diversity.
 
-**GC-cleanup**. After the the final repairs all GC-pairs in the
-designable positions are attempted substidized for AU-pairs while
-keeping the base-pair distance unchanged, or reduced. This is to reduce
-the inflated GC-content which usually ends up at around 80% before this
-step.
+**GC cleanup.** Unless rRNA mode or `GC_TEST` is on, the sequence passes
+through `diversify_sequence()` and then `gc_cleanup()`. Both only touch
+base pairs whose two positions were `N` in the input, visit them in
+random order, and stop once the GC content lies between the configured
+lower and upper thresholds. Every change must keep the base-pair
+distance unchanged or lower. `diversify_sequence()` re-draws a random
+pair type (A–U, U–A, G–C or C–G). `gc_cleanup()` converts G–C pairs to
+A–U or U–A to reduce the GC content, which is typically about 80% before
+this step.
 
 ### 4. Pseudoknot verification and annotation
 
-The ViennaRNA MFE structure contains no pseudoknots, so they are
-reinstated at the target's pseudoknot positions wherever the designed
-bases can form valid pairs. This should always be the case, since
-pseudoknot positions are treated as paired during design. The program
-then runs ViennaRNA's PKplex as a final, separate pseudoknot check.
+Slice design ignores pseudoknots. They enter the cost from the global
+stage onward. ViennaRNA's MFE structure contains no pseudoknots, so
+`annotate_pk` reinstates the target's pseudoknot pairs wherever the
+designed bases can form valid pairs. The reported bp distance is the
+pseudoknot-aware distance, with a penalty of 2 per invalid pseudoknot
+pair.
 
-The reported **MFE structure with PK** is therefore the ViennaRNA MFE
-structure for the ordinary nested pairs, plus the target's pseudoknot
-brackets where the sequence supports valid base pairs. It is **not** a
-full thermodynamic pseudoknot MFE prediction. PKplex output is the
-separate pseudoknot-oriented check.
+ViennaRNA's PKplex is then run as a separate pseudoknot check. Its first
+prediction supplies the reported structure and `mfe` value. The result
+is therefore **not** a full thermodynamic pseudoknot MFE prediction, and
+the reported energy should be read as PKplex's estimate. Ensemble
+diversity is reported as the nested plus pseudoknot diversity.
 
 
 
