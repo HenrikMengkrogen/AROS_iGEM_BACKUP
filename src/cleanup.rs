@@ -21,7 +21,8 @@ use crate::io::gc_content;
 use crate::structure::get_pair_map;
 use crate::types::DesignResult;
 
-pub fn gc_cleanup(
+
+pub fn gc_cleanup( 
     seq_in: &str,
     original_annotation: &str,
     target: &str,
