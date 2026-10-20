@@ -1,10 +1,10 @@
 ==== FINAL (run 6) ====
-sequence      : AGUCAACAUCAGUCUGAUAAGCUACAAACACCAUUGUCACACUCCAGAGAUAGUAUGCCGAUCGCCAUUUGACAAUGGUGUUUGACCAUACUCAGACUGAUGUUGACUGGCCGACCCAGUUAGGCUCGGGCUUUUCCAUCAAGAACAGGCCACCAUGGAAAAGCCCGAGCCUAAC
+sequence      : AGUCAACAUCAGUCUGAUAAGCUACAAACACCAUUGUCACACUCCAUCAGUACAUGCCCAAACCACAUAUGACAAUGGUGUUUGCUCGUACUCAGACUGAUGUUGACUGAGAUAGAGAGGGGCCCCCCGCCUUUUCCAUCAAGAACAGGCCACCAUGGAAAAGGCGGGGGGCCCC
 target        : (((((((((((((((((.......(((((((((((((((..............................))))))))))))))).......)))))))))))))))))..........(((((((((((((((((((((...............)))))))))))))))))))))
 mfe structure : (((((((((((((((((.......(((((((((((((((..............................))))))))))))))).......)))))))))))))))))..........(((((((((((((((((((((...............)))))))))))))))))))))
 bp_distance   : 0
-mfe           : -91.80
-Ensemble Diversity : 6.95
+mfe           : -95.80
+Ensemble Diversity : 4.08
 slices        : 3
 Ribosomal RNA used: false
-GC Content: 48.57%
+GC Content: 50.86%
