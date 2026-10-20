@@ -821,6 +821,8 @@ This project builds on the [ViennaRNA Package](https://www.tbi.univie.ac.at/RNA/
 
 This repository is licensed under the [Apache License 2.0](LICENSE) — a permissive open-source license recommended for software (Creative Commons licenses are *not* intended for source code). You are free to use, modify, and distribute this software, provided you keep the license and attribution notices. If you prefer different terms for your own tool, you may replace this license, but it must remain an [OSI-approved open-source license](https://opensource.org/licenses).
 
+Note that **ViennaRNA** has its own copyright attached
+
 
 ## Citation
 If you use this tool, please cite the iGEM Aarhus University 2026 team and ViennaRNA:

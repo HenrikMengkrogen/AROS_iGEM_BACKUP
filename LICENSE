@@ -199,3 +199,7 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+Third-party software notice
+
+ViennaRNA is a third-party software package and is not covered by this project's Apache License 2.0 grant. ViennaRNA is distributed under its own license terms. See the [ViennaRNA GitHub repository](https://github.com/ViennaRNA/ViennaRNA.git) for its licensing information.
