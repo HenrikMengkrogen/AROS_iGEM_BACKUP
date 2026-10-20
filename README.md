@@ -779,7 +779,7 @@ These GitHub Actions workflows run on the GitHub mirror; they do not run automat
 ### Project structure
 
 ```
-AROS-rna-sequence-generator/
+AROS-Automated-RNA-Optimization-by-Slicing/
 ├── Cargo.toml
 ├── Cargo.lock
 ├── build.rs
@@ -791,18 +791,13 @@ AROS-rna-sequence-generator/
 ├── misc/
 │   ├── input_*.txt
 │   └── output/
-├── Python/                         # legacy, unused
+├── Python/                         # legacy, unused -> intended for an ML mode which were never made
 ├── vendor/
 │   └── RNAlib/
 │       ├── include/
-│       │   └── ViennaRNA/          # ViennaRNA C headers
-│       └── prebuilt/               # stored with Git LFS
-│           ├── x86_64-apple-darwin/
-│           ├── aarch64-apple-darwin/
-│           ├── x86_64-unknown-linux-gnu/
-│           ├── aarch64-unknown-linux-gnu/
-│           ├── x86_64-pc-windows-gnu/
-│           └── aarch64-pc-windows-gnullvm/
+│       │   └── ViennaRNA/          
+│       └── prebuilt/               # Prebuilt only for Mac intel by default -> Setup.sh bulds static libraries for the rest
+│           └── x86_64-apple-darwin/ 
 │               ├── libRNA.a
 │               ├── libgmp.a
 │               ├── libmpfr.a
