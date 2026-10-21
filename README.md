@@ -654,7 +654,7 @@ The sequence and structure must be the same length.
 ```
 $ cargo run
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.23s
-     Running `target/debug/Ribosome_mut_program`
+     Running `target/debug/ribologic-rna-sequence-generator
 ========================================
 RNA design configuration
 Press Enter to accept a default value.
