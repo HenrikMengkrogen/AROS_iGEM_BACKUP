@@ -204,7 +204,7 @@ ViennaRNA's MFE algorithm (Zuker) runs in O(n³), so folding one long
 sequence over and over is slow. Instead the target is broken into
 smaller problems, **slices**.
 
-The target may use only `(`, `)`, `.` and `_`, plus one pseudoknot
+The target may use only `(`, `)` and `.`, plus one pseudoknot
 bracket pair `[` `]`. Other bracket types are rejected.
 
 The target is split into top-level blocks, and each block is split
