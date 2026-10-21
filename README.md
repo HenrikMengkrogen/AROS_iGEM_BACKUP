@@ -3,10 +3,7 @@
 **Team Aarhus University 2026 – Software**
 ## Table of contents
 
-- [Quick start: macOS](#quick-start-macos)
-- [Quick start: Linux](#quick-start-linux)
-- [Quick start: Windows (MSYS2)](#quick-start-windows-msys2)
-- [Troubleshooting](#troubleshooting)
+- [Quick start (TL;DR)](#quick-start-tldr)
 - [Overview](#overview)
 - [How it works](#how-it-works)
   - [1. Slicing the target](#1-slicing-the-target)
@@ -16,7 +13,12 @@
   - [Supported platforms](#supported-platforms)
 - [Installation](#installation)
   - [Requirements](#requirements)
-  - [Git LFS (required)](#git-lfs-required)
+  - [Git LFS (Intel macOS only)](#git-lfs-intel-macos-only)
+- [Quick start](#quick-start)
+  - [macOS (Intel and Apple Silicon)](#macos-intel-and-apple-silicon)
+  - [Linux](#linux)
+  - [Windows (MSYS2)](#windows-msys2)
+- [Troubleshooting](#troubleshooting)
 - [Usage](#usage)
   - [Input and output files](#input-and-output-files)
 - [Example](#example)
@@ -29,101 +31,46 @@
 - [License](#license)
 - [Citation](#citation)
 
-### Quick start: macOS
+## Quick start (TL;DR)
 
-Clone the repository and run the setup script:
+**1. Get the code and run setup** (pick your platform):
 
-```bash
-git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
-cd ribologic-rna-sequence-generator
+| Platform | Before you start | Commands |
+|---|---|---|
+| **Linux** (x86_64 / arm64) | `sudo apt-get install -y build-essential clang libclang-dev pkg-config git curl` | see below |
+| **macOS, Apple Silicon** | `xcode-select --install` | see below |
+| **macOS, Intel** | `xcode-select --install` and `brew install git-lfs && git lfs install` (before cloning) | see below |
+| **Windows** (x86_64 / ARM64) | Install [MSYS2](https://www.msys2.org/), then open **MSYS2 MinGW x64** (Intel/AMD) or **MSYS2 CLANGARM64** (ARM64). No other terminal works. | see below |
 
-# Run setup in the current shell so Cargo and native-library environment
-# variables remain available immediately afterward.
-source ./setup.sh
-```
-The setup script installs required tools when needed and builds the project. This works the same way on Intel and Apple Silicon Macs, because `setup.sh` detects your CPU architecture and targets it automatically.
-
-Then run the program (`--release` is faster):
-
-```bash
-cargo run --release
-```
-
-If Rust was not installed automatically, install it with:
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
-```
-
-### Quick start: Linux
-
-Install the system requirements shown above, then clone the repository:
+**macOS and Linux:**
 
 ```bash
 git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
 cd ribologic-rna-sequence-generator
-# `source` keeps PATH and other setup environment variables in this shell.
-source ./setup.sh
-
+source ./setup.sh        # use "source", not "./setup.sh"
 cargo run --release
 ```
 
-This works on both `x86_64` and `arm64` Linux; `setup.sh` detects your architecture and builds ViennaRNA from source if a prebuilt archive isn't already vendored.
+**Windows (inside the MSYS2 terminal):**
 
-### Quick start: Windows (MSYS2)
+```bash
+pacman -S --needed git
+git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
+cd ribologic-rna-sequence-generator
+source ./setup.sh
 
-Native Windows is supported on `x86_64` (MinGW64) and `ARM64` (CLANGARM64).
+# then run with the target for your CPU:
+cargo run --release --target x86_64-pc-windows-gnu        # Intel/AMD
+cargo run --release --target aarch64-pc-windows-gnullvm   # ARM64
+```
 
-1. Install [MSYS2](https://www.msys2.org/).
-2. Open the MSYS2 terminal that matches your CPU from the Start menu (this specific shell is required):
+**2. Answer the two prompts.** Press Enter to accept the defaults (3 complete runs, 5 hill-climbing starts per run), or enter your own numbers. More starts use more CPU cores.
 
-   | Your Windows | Open this terminal |
-   |---|---|
-   | x86_64 (Intel/AMD) | **MSYS2 MinGW x64** |
-   | ARM64 | **MSYS2 CLANGARM64** |
+**3. Read the result.** Results are written to `misc/output/`, and you can view them in the terminal when asked (y/n). A `bp_distance` of `0` means the sequence folds exactly into your target structure.
 
-    > This specific terminal is required. Do not use PowerShell, Command Prompt,
-    > Git Bash, WSL, the plain MSYS2 shell, UCRT64, CLANG64, or MinGW x86 (`MINGW32`).
-3. Install Git and Git LFS if they are not already available. The package prefix adapts to the terminal you opened:
+**Using your own target:** put a file named `input_<name>.txt` in `misc/` containing a `Sequence:` line and a `Structure:` line of the same length (use `N`, `K`, `S` for positions to design). See [Input and output files](#input-and-output-files).
 
-   ```bash
-   pacman -S --needed git "$MINGW_PACKAGE_PREFIX-git-lfs"
-   git lfs install
-   ```
-4. Clone the repository and run the setup script:
-   ```bash
-   git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
-   cd ribologic-rna-sequence-generator
-   source ./setup.sh
-   ```
-   `setup.sh` detects which terminal you are in. It installs the matching toolchain, GMP, MPFR, and GSL via `pacman`, builds ViennaRNA from source, and adds the right Rust target (`x86_64-pc-windows-gnu` or `aarch64-pc-windows-gnullvm`). The first run can take a long time, especially on ARM64.
-5. Run the program, targeting the GNU toolchain for your platform:
-
-   ```bash
-   # x86_64 (MSYS2 MinGW x64)
-   cargo run --release --target x86_64-pc-windows-gnu
-
-   # ARM64 (MSYS2 CLANGARM64)
-   cargo run --release --target aarch64-pc-windows-gnullvm
-   ```
-
-> Windows x86 (32-bit) is not supported: MSYS2's `MINGW32` repository no longer provides `clang` or GSL.
-
-## Troubleshooting
-
-| Problem | Fix |
-|---|---|
-| Build fails with tiny "pointer" files in `vendor/` or linker errors about `libRNA.a` | Git LFS did not download the vendored files. Run `git lfs install && git lfs pull` from the repository root. |
-| `setup.sh` fails on Windows, or says `Unsupported MSYS2 environment` | Open **MSYS2 MinGW x64** (x86_64) or **MSYS2 CLANGARM64** (ARM64) specifically. PowerShell, CMD, Git Bash, WSL, plain MSYS2, UCRT64, CLANG64, and MinGW x86 are unsupported for the native Windows build. |
-| `cargo: command not found` immediately after setup | Run `source ./setup.sh`, not `./setup.sh`. Alternatively, close and reopen the terminal after Rust installation. |
-| `cargo: command not found` on Windows after reopening MSYS2 | Confirm that Rust is installed, then run `source ./setup.sh` from MSYS2 MinGW x64 or CLANGARM64. |
-| `bindgen` cannot find `libclang` | Run `source ./setup.sh` again. On Linux, ensure `clang` and `libclang-dev` are installed. |
-| Setup appears frozen during Windows installation | The first run may download/install a large toolchain and build ViennaRNA (the ARM64 build can take 30+ minutes). Let `pacman` and `make` finish. |
-| `pacman` reports `failed retrieving file` or `Operation too slow` | A package mirror stalled. `setup.sh` retries automatically; if it still fails, run `source ./setup.sh` again. |
-| Linker errors such as `undefined symbol: omp_set_dynamic` or `pthread_mutex_lock` on Windows | The vendored libraries were built with an older setup. Delete `vendor/RNAlib/prebuilt/<your-target>/` and run `source ./setup.sh` again to rebuild them. |
-| Setup seems frozen on an Intel Mac | Homebrew may be compiling dependencies such as LLVM from source. This can take a long time. |
-| Program uses all CPU cores | Lower the number of parallel runs at the second prompt. |
+> The first setup run can take a long time (30+ minutes on Windows ARM64) because it builds ViennaRNA from source. If something fails, see [Troubleshooting](#troubleshooting). For full requirements, see [Installation](#installation).
 
 
 # Overview
@@ -502,88 +449,145 @@ On macOS and Linux, ViennaRNA is built from source by `setup.sh` if a prebuilt a
 
 ## Installation
 
+AROS is built with Cargo and links against static native libraries (ViennaRNA, GMP, MPFR and GSL). `setup.sh` takes care of these for you:
+
+- **Intel macOS:** prebuilt libraries are shipped in `vendor/RNAlib/prebuilt/x86_64-apple-darwin/` and stored with Git LFS.
+- **All other platforms:** `setup.sh` builds the static libraries from source (or uses your package manager) and places them in `vendor/RNAlib/prebuilt/<your-target>/`.
+
+Always run it with `source ./setup.sh`, not `./setup.sh`, so Cargo and the native-library environment variables stay available in your shell.
+
 ### Requirements
 
-#### All platforms
+**All platforms**
 
-- Git and **Git LFS** (see [Git LFS](#git-lfs-required) below)
-- At least 2–3 GB of free disk space for Rust, compiler toolchains, downloaded packages, and native-library builds
+- Git
+- At least 2–3 GB of free disk space for Rust, compilers, packages and native-library builds
 - An Internet connection for the first setup run
+- **Intel macOS only:** Git LFS, installed **before cloning** (see [Git LFS](#git-lfs-intel-macos-only))
 
+**macOS**
 
-#### macOS
-
-- Intel or Apple Silicon Mac
 - Xcode Command Line Tools (`xcode-select --install`)
 - Homebrew (installed automatically by `setup.sh` if missing)
+- Rust (installed automatically by `setup.sh` if missing)
 
-> **Intel Macs:** Homebrew no longer provides prebuilt bottles for Intel, so `brew install` may compile dependencies (for example LLVM) from source, which can take a very long time. If a build seems idle, it is usually still compiling.
+**Linux**
 
-#### Linux
+- `x86_64` or `arm64`
+- A supported package manager: `apt`, `dnf`, `yum`, `pacman` or `zypper`
+- Clang and `libclang` development files (required by Rust `bindgen`), plus a C toolchain and `curl`
+- Rust (see the quick start)
 
-- `x86_64` or `arm64` Linux
-- Rust toolchain
-- Clang and `libclang` development files, required by Rust `bindgen`
-- A supported package manager: `apt`, `dnf`, `yum`, `pacman`, or `zypper`
-
-For Ubuntu or Debian-based distributions:
+On Ubuntu or Debian:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y \
-  build-essential \
-  clang \
-  libclang-dev \
-  pkg-config \
-  git \
-  git-lfs \
-  curl
+sudo apt-get install -y build-essential clang libclang-dev pkg-config git curl
 ```
 
-#### Windows
+**Windows**
 
-- Windows 10 or Windows 11 on `x86_64` or `ARM64`
-- [MSYS2](https://www.msys2.org/) installed
-- The build must be run from the matching MSYS2 terminal:
-  - **MSYS2 MinGW x64** on `x86_64` Windows
-  - **MSYS2 CLANGARM64** on `ARM64` Windows
+- Windows 10 or 11 on `x86_64` or `ARM64`
+- [MSYS2](https://www.msys2.org/)
+- The matching MSYS2 terminal:
 
-  Do **not** use PowerShell, Command Prompt, Git Bash, WSL, the plain MSYS2 shell, UCRT64, CLANG64, or MinGW x86 (`MINGW32`).
-- Internet access for the initial `pacman`, Rust, and ViennaRNA setup
+  | Your Windows | Terminal | Rust target |
+  |---|---|---|
+  | x86_64 (Intel/AMD) | **MSYS2 MinGW x64** | `x86_64-pc-windows-gnu` |
+  | ARM64 | **MSYS2 CLANGARM64** | `aarch64-pc-windows-gnullvm` |
 
-`setup.sh` reads the active MSYS2 environment and selects the matching Rust toolchain and target automatically:
+  Do **not** use PowerShell, Command Prompt, Git Bash, WSL, the plain MSYS2 shell, UCRT64, CLANG64 or MinGW x86 (`MINGW32`). Windows x86 (32-bit) is not supported because MSYS2's `MINGW32` repository no longer provides `clang` or GSL.
 
-| MSYS2 terminal | Rust toolchain | Rust target |
-|---|---|---|
-| MinGW x64 | `stable-x86_64-pc-windows-gnu` | `x86_64-pc-windows-gnu` |
-| CLANGARM64 | `stable-aarch64-pc-windows-gnullvm` | `aarch64-pc-windows-gnullvm` |
+`setup.sh` detects the terminal and installs the matching Rust toolchain, compilers, GMP, MPFR and GSL through `pacman`. It then builds ViennaRNA from source. The first run can take a long time, especially on ARM64 (30+ minutes).
 
-It also installs the required MSYS2 packages for that environment. The first Windows setup may take a long time (the ARM64 build in particular) because it downloads compilers, LLVM/Clang, autotools, GMP, MPFR, GSL, and builds ViennaRNA.
+### Git LFS (Intel macOS only)
 
-
-### Git LFS (required)
-
-The prebuilt native libraries in `vendor/` are large binaries and are stored with [Git LFS](https://git-lfs.com). Install Git LFS **before cloning**, otherwise you will get small pointer files instead of the real libraries and the build will fail.
+Only the prebuilt Intel macOS libraries are stored with [Git LFS](https://git-lfs.com). If you are on Intel macOS, install it **before cloning**, otherwise you get small pointer files instead of the real libraries and the build fails:
 
 ```bash
-# macOS (Apple Silicon)
 brew install git-lfs
-
-# Ubuntu / Debian
-sudo apt-get install git-lfs
-
-# Windows (MSYS2 MinGW x64 or CLANGARM64)
-pacman -S --needed git-lfs
-
-# Once per machine:
-git lfs install
+git lfs install      # once per machine
 ```
 
-If you already cloned without Git LFS, run this inside the repository:
+If you already cloned without it, run `git lfs pull` inside the repository. On all other platforms you do not need Git LFS.
+
+## Quick start
+
+### macOS (Intel and Apple Silicon)
 
 ```bash
-git lfs pull
+# Intel Macs only, before cloning:
+# brew install git-lfs && git lfs install
+
+git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
+cd ribologic-rna-sequence-generator
+source ./setup.sh
+cargo run --release
 ```
+
+`setup.sh` detects your CPU architecture automatically. On Intel Macs, Homebrew has no prebuilt bottles, so it may compile dependencies such as LLVM from source, which can take a long time.
+
+### Linux
+
+Install the [requirements](#requirements) first, then:
+
+```bash
+git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
+cd ribologic-rna-sequence-generator
+source ./setup.sh
+cargo run --release
+```
+
+This works on `x86_64` and `arm64`. `setup.sh` builds ViennaRNA from source and installs Rust if it is missing.
+
+### Windows (MSYS2)
+
+1. Install [MSYS2](https://www.msys2.org/).
+2. Open the terminal that matches your CPU (see the table under [Requirements](#requirements)).
+3. Install Git if needed:
+
+```bash
+   pacman -S --needed git
+```
+4. Clone and run setup:
+
+```bash
+   git clone https://gitlab.igem.org/2026/software/aarhus-university/ribologic-rna-sequence-generator.git
+   cd ribologic-rna-sequence-generator
+   source ./setup.sh
+```
+5. Run with the target for your platform:
+
+```bash
+   # x86_64 (MSYS2 MinGW x64)
+   cargo run --release --target x86_64-pc-windows-gnu
+
+   # ARM64 (MSYS2 CLANGARM64)
+   cargo run --release --target aarch64-pc-windows-gnullvm
+```
+
+If Rust was not installed automatically on macOS or Linux:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| **Intel macOS:** build fails with tiny "pointer" files in `vendor/`, or linker errors about `libRNA.a` | Git LFS did not download the prebuilt libraries. Run `git lfs install && git lfs pull` from the repository root. |
+| Linker errors about missing `libRNA.a` on any other platform | The setup step did not finish. Run `source ./setup.sh` again and check for errors. |
+| `Unsupported MSYS2 environment` or setup fails on Windows | Use **MSYS2 MinGW x64** (x86_64) or **MSYS2 CLANGARM64** (ARM64). All other shells are unsupported. |
+| `cargo: command not found` right after setup | You ran `./setup.sh` instead of `source ./setup.sh`. Source it, or reopen the terminal. |
+| `cargo: command not found` on Windows after reopening MSYS2 | Check that Rust is installed, then run `source ./setup.sh` from the correct MSYS2 terminal. |
+| `bindgen` cannot find `libclang` | Run `source ./setup.sh` again. On Linux, install `clang` and `libclang-dev`. |
+| Setup appears frozen on Windows | It is probably downloading a toolchain or building ViennaRNA (30+ minutes on ARM64). Let `pacman` and `make` finish. |
+| `pacman` reports `failed retrieving file` or `Operation too slow` | A mirror stalled. `setup.sh` retries automatically; if it still fails, run it again. |
+| `undefined symbol: omp_set_dynamic` or `pthread_mutex_lock` on Windows | The libraries were built by an older setup. Delete `vendor/RNAlib/prebuilt/<your-target>/` and run `source ./setup.sh` again. |
+| Setup seems frozen on an Intel Mac | Homebrew may be compiling dependencies such as LLVM from source. This can take a long time. |
+| The program uses all CPU cores | Lower the number of hill-climbing starts at the second prompt. |
 
 
 
@@ -665,7 +669,7 @@ How many hill-climbing starts per run? [5]: 8
 
 **Output**: written to `misc/output/`, and viewable in the terminal when asked (y/n):
 
-run 4 was the best of the 10:
+run 1 was the best of the 10:
 ```
 INPUT: misc/input_1.txt
 ==== FINAL (run 1) ====
