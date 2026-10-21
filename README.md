@@ -795,7 +795,7 @@ AROS-Automated-RNA-Optimization-by-Slicing/
 ├── misc/
 │   ├── input_*.txt
 │   └── output/
-├── Python/                         # legacy, unused -> intended for an ML mode which were never made
+├── Python/                         # legacy, unused -> intended for an ML mode which were never implemented
 ├── vendor/
 │   └── RNAlib/
 │       ├── include/
