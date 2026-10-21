@@ -811,7 +811,7 @@ AROS-Automated-RNA-Optimization-by-Slicing/
 
 ## Authors and acknowledgment
 
-Developed by iGEM Team Aarhus University 2026.
+Developed by Henrik Mengkrogen for the Aarhus University iGEM Team 2026.
 
 contributor(s): Henrik Mengkrogen
 
